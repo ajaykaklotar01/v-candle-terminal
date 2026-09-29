@@ -1,28 +1,54 @@
-/*
-====================================================
- V CANDLE TERMINAL
- PHASE 3
+// ==========================================
+// AJAY V CANDLE TERMINAL
+// ==========================================
 
- ✓ Simulated ticks
- ✓ 3-minute OHLC
- ✓ Normal candles
- ✓ Exact V Candle calculation
- ✓ Smooth EMA 45
- ✓ After EMA 45
- ✓ Doji threshold 0.03
-====================================================
-*/
+// ------------------------------------------
+// SETTINGS
+// ------------------------------------------
+
+const SETTINGS = {
+
+    symbol: "NIFTY 50",
+
+    timeframeMinutes: 3,
+
+    // V CANDLE
+    vCandleSmooth: 45,
+    vCandleAfter: 45,
+    vCandleDoji: 0.03,
+
+    // V SLOPE
+    vSlopeSmooth: 60,
+    vSlopeAfter: 60,
+    vSlopeEMA: 5,
+    vSlopeNeutral: 0.03,
+
+    // VLOT
+    vLotATRLength: 14,
+    vLotATRMultiplier: 1.3,
+    vLotRisk: 5,
+    vLotMode: "AUTO ATR",
+    vLotManualSLD: 10
+};
 
 
-// ==================================================
+// ------------------------------------------
+// MARKET DATA
+// ------------------------------------------
+
+let candles = [];
+
+let currentCandle = null;
+
+let simulatedPrice = 25100;
+
+let simulatedTime =
+    new Date(2026, 0, 1, 13, 0, 0);
+
+
+// ------------------------------------------
 // DOM
-// ==================================================
-
-const canvas =
-    document.getElementById("chart");
-
-const ctx =
-    canvas.getContext("2d");
+// ------------------------------------------
 
 const priceElement =
     document.getElementById("price");
@@ -30,202 +56,98 @@ const priceElement =
 const statusElement =
     document.getElementById("status");
 
-const lastTimeElement =
-    document.getElementById("lastTime");
+const connectionElement =
+    document.getElementById("connectionStatus");
 
 const symbolElement =
     document.getElementById("symbol");
 
-const chartSymbol =
-    document.getElementById("chartSymbol");
+const vCandleValueElement =
+    document.getElementById("vCandleValue");
+
+const vCandleStateElement =
+    document.getElementById("vCandleState");
+
+const vSlopeValueElement =
+    document.getElementById("vSlopeValue");
+
+const vSlopeStateElement =
+    document.getElementById("vSlopeState");
+
+const vLotSLDElement =
+    document.getElementById("vLotSLD");
+
+const vLotLotElement =
+    document.getElementById("vLotLot");
 
 
-// ==================================================
-// SETTINGS
-// ==================================================
+// ------------------------------------------
+// CANVAS
+// ------------------------------------------
 
-const TIMEFRAME_MINUTES = 3;
+const canvas =
+    document.getElementById("chart");
 
-const MAX_CANDLES = 150;
-
-const START_PRICE = 25100;
-
-
-// V CANDLE SETTINGS
-
-const V_SMOOTH_LEN = 45;
-
-const V_AFTER_LEN = 45;
-
-const V_DOJI_THRESHOLD = 0.03;
+const ctx =
+    canvas ? canvas.getContext("2d") : null;
 
 
-// ==================================================
-// MARKET DATA
-// ==================================================
+// ------------------------------------------
+// 3 MINUTE CANDLE ENGINE
+// ------------------------------------------
 
-let candles = [];
+function getCandleStart(timestamp) {
 
-let currentCandle = null;
+    const date = new Date(timestamp);
 
-let simulatedPrice =
-    START_PRICE;
-
-let simulatedVolume = 0;
-
-
-// ==================================================
-// SIMULATED TIME
-// ==================================================
-
-let simulatedTime =
-    new Date();
-
-simulatedTime.setHours(13);
-
-simulatedTime.setMinutes(0);
-
-simulatedTime.setSeconds(0);
-
-simulatedTime.setMilliseconds(0);
-
-
-// ==================================================
-// FORMAT TIME
-// ==================================================
-
-function formatTime(date) {
-
-    const hours =
-        String(
-            date.getHours()
-        ).padStart(2, "0");
-
-
-    const minutes =
-        String(
-            date.getMinutes()
-        ).padStart(2, "0");
-
-
-    return `${hours}:${minutes}`;
-}
-
-
-// ==================================================
-// 3-MINUTE CANDLE START
-// ==================================================
-
-function getCandleStart(date) {
-
-    const result =
-        new Date(date);
-
-
-    const minutes =
-        result.getMinutes();
-
+    const minutes = date.getMinutes();
 
     const candleMinute =
-        Math.floor(
-            minutes /
-            TIMEFRAME_MINUTES
-        ) *
-        TIMEFRAME_MINUTES;
+        Math.floor(minutes / SETTINGS.timeframeMinutes)
+        * SETTINGS.timeframeMinutes;
 
+    date.setMinutes(candleMinute);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
 
-    result.setMinutes(
-        candleMinute
-    );
-
-
-    result.setSeconds(0);
-
-    result.setMilliseconds(0);
-
-
-    return result;
+    return date.getTime();
 }
 
 
-// ==================================================
-// CREATE CANDLE
-// ==================================================
-
-function createCandle(
-    price,
-    time,
-    volume
-) {
+function processTick(price, timestamp) {
 
     const candleStart =
-        getCandleStart(time);
-
-
-    return {
-
-        time:
-            formatTime(
-                candleStart
-            ),
-
-        timestamp:
-            candleStart.getTime(),
-
-        open:
-            price,
-
-        high:
-            price,
-
-        low:
-            price,
-
-        close:
-            price,
-
-        volume:
-            volume
-    };
-}
-
-
-// ==================================================
-// PROCESS TICK
-// ==================================================
-
-function processTick(
-    price,
-    time,
-    volume = 1
-) {
-
-    const candleStart =
-        getCandleStart(time);
-
-
-    // FIRST CANDLE
-
-    if (currentCandle === null) {
-
-        currentCandle =
-            createCandle(
-                price,
-                time,
-                volume
-            );
-
-        return;
-    }
-
-
-    // SAME CANDLE
+        getCandleStart(timestamp);
 
     if (
-        candleStart.getTime()
-        ===
-        currentCandle.timestamp
+        currentCandle === null ||
+        currentCandle.time !== candleStart
     ) {
+
+        if (currentCandle !== null) {
+
+            candles.push({
+                ...currentCandle
+            });
+
+            if (candles.length > 150) {
+                candles.shift();
+            }
+        }
+
+        currentCandle = {
+
+            time: candleStart,
+
+            open: price,
+            high: price,
+            low: price,
+            close: price,
+
+            volume: 1
+        };
+
+    } else {
 
         currentCandle.high =
             Math.max(
@@ -233,324 +155,282 @@ function processTick(
                 price
             );
 
-
         currentCandle.low =
             Math.min(
                 currentCandle.low,
                 price
             );
 
+        currentCandle.close = price;
 
-        currentCandle.close =
-            price;
-
-
-        currentCandle.volume +=
-            volume;
-
-
-        return;
+        currentCandle.volume++;
     }
-
-
-    // NEW CANDLE
-
-    closeCurrentCandle();
-
-
-    currentCandle =
-        createCandle(
-            price,
-            time,
-            volume
-        );
 }
 
 
-// ==================================================
-// CLOSE CANDLE
-// ==================================================
-
-function closeCurrentCandle() {
-
-    if (!currentCandle) {
-        return;
-    }
-
-
-    candles.push({
-        ...currentCandle
-    });
-
-
-    if (
-        candles.length >
-        MAX_CANDLES
-    ) {
-
-        candles.shift();
-
-    }
-
-
-    updateTerminal();
-
-    drawChart();
-}
-
-
-// ==================================================
+// ------------------------------------------
 // GET DISPLAY CANDLES
-// ==================================================
+// ------------------------------------------
 
 function getDisplayCandles() {
 
-    const result =
-        [...candles];
+    const data = [...candles];
 
-
-    if (currentCandle) {
-
-        result.push(
-            currentCandle
-        );
-
+    if (currentCandle !== null) {
+        data.push({
+            ...currentCandle
+        });
     }
 
-
-    return result;
+    return data;
 }
 
 
-// ==================================================
-// GENERATE SIMULATED TICK
-// ==================================================
+// ------------------------------------------
+// V CANDLE
+// ------------------------------------------
 
-function generateTick() {
-
-    const movement =
-        (
-            Math.random() -
-            0.48
-        ) * 18;
-
-
-    simulatedPrice +=
-        movement;
-
-
-    if (
-        simulatedPrice < 100
-    ) {
-
-        simulatedPrice = 100;
-
-    }
-
-
-    const volume =
-        Math.floor(
-            Math.random() * 500
-        ) + 100;
-
-
-    simulatedVolume +=
-        volume;
-
-
-    processTick(
-        simulatedPrice,
-        simulatedTime,
-        volume
-    );
-
-
-    simulatedTime =
-        new Date(
-            simulatedTime.getTime()
-            + 10000
-        );
-
-
-    updateLiveDisplay();
-
-    drawChart();
-}
-
-
-// ==================================================
-// LIVE DISPLAY
-// ==================================================
-
-function updateLiveDisplay() {
-
-    if (!currentCandle) {
-        return;
-    }
-
-
-    priceElement.textContent =
-        currentCandle.close
-            .toFixed(2);
-
-
-    lastTimeElement.textContent =
-        currentCandle.time;
-
-
-    statusElement.textContent =
-        "SIMULATION";
-
-
-    document.getElementById(
-        "dataSource"
-    ).textContent =
-        "SIMULATED TICKS";
-
-
-    document.getElementById(
-        "candleEngine"
-    ).textContent =
-        "3 MIN OHLC";
-}
-
-
-// ==================================================
-// CALCULATE V CANDLE
-// ==================================================
-
-function getVCandleData() {
+function updateVCandle() {
 
     const data =
         getDisplayCandles();
 
-
-    if (data.length === 0) {
-
-        return [];
-
-    }
-
-
-    return calculateVCandle(
-
-        data,
-
-        V_SMOOTH_LEN,
-
-        V_AFTER_LEN,
-
-        V_DOJI_THRESHOLD
-
-    );
-}
-
-
-// ==================================================
-// UPDATE V CANDLE DISPLAY
-// ==================================================
-
-function updateVCandleDisplay() {
-
-    const vData =
-        getVCandleData();
-
-
-    if (vData.length === 0) {
+    if (
+        typeof calculateVCandle !== "function" ||
+        data.length === 0
+    ) {
         return;
     }
 
-
-    const last =
-        vData[
-            vData.length - 1
-        ];
-
-
-    const value =
-        document.getElementById(
-            "vCandleValue"
+    const result =
+        calculateVCandle(
+            data,
+            SETTINGS.vCandleSmooth,
+            SETTINGS.vCandleAfter,
+            SETTINGS.vCandleDoji
         );
 
+    if (!result || result.length === 0) {
+        return;
+    }
 
-    const signal =
-        document.getElementById(
-            "vCandleSignal"
-        );
+    const latest =
+        result[result.length - 1];
 
+    if (!latest) {
+        return;
+    }
 
-    value.textContent =
-        last.close.toFixed(2);
+    if (vCandleValueElement) {
+        vCandleValueElement.textContent =
+            latest.close != null
+                ? latest.close.toFixed(2)
+                : "--";
+    }
 
+    if (vCandleStateElement) {
 
-    if (last.isDoji) {
-
-        signal.textContent =
-            "DOJI";
-
-    } else if (
-        last.color ===
-        "bullish"
-    ) {
-
-        signal.textContent =
-            "BULLISH";
-
-    } else {
-
-        signal.textContent =
-            "BEARISH";
+        vCandleStateElement.textContent =
+            latest.isDoji
+                ? "DOJI"
+                : latest.color === "bullish"
+                    ? "BULLISH"
+                    : "BEARISH";
     }
 }
 
 
-// ==================================================
-// TERMINAL UPDATE
-// ==================================================
+// ------------------------------------------
+// V SLOPE
+// ------------------------------------------
 
-function updateTerminal() {
+function updateVSlope() {
 
-    updateLiveDisplay();
+    const data =
+        getDisplayCandles();
 
-    updateVCandleDisplay();
+    if (
+        typeof calculateVSlope !== "function" ||
+        data.length === 0
+    ) {
+        return;
+    }
 
+    const result =
+        calculateVSlope(
+            data,
+            SETTINGS.vSlopeSmooth,
+            SETTINGS.vSlopeAfter,
+            SETTINGS.vSlopeEMA,
+            SETTINGS.vSlopeNeutral
+        );
 
-    // V SLOPE — NEXT PHASE
+    if (!result || result.length === 0) {
+        return;
+    }
 
-    document.getElementById(
-        "vSlopeValue"
-    ).textContent =
-        "--";
+    const latest =
+        result[result.length - 1];
 
+    if (!latest) {
+        return;
+    }
 
-    // VLOT — NEXT PHASE
+    if (vSlopeValueElement) {
 
-    document.getElementById(
-        "vlotValue"
-    ).textContent =
-        "--";
+        vSlopeValueElement.textContent =
+            latest.value != null
+                ? latest.value.toFixed(4)
+                : "--";
+    }
+
+    if (vSlopeStateElement) {
+
+        vSlopeStateElement.textContent =
+            latest.state;
+    }
 }
 
 
-// ==================================================
-// CANVAS RESIZE
-// ==================================================
+// ------------------------------------------
+// VLOT
+// ------------------------------------------
+
+function updateVLOT() {
+
+    const data =
+        getDisplayCandles();
+
+    if (
+        typeof calculateVLOT !== "function" ||
+        data.length === 0
+    ) {
+        return;
+    }
+
+    const result =
+        calculateVLOT(
+            data,
+            SETTINGS.vLotATRLength,
+            SETTINGS.vLotATRMultiplier,
+            SETTINGS.vLotRisk,
+            SETTINGS.vLotMode,
+            SETTINGS.vLotManualSLD
+        );
+
+    if (!result) {
+        return;
+    }
+
+    if (vLotSLDElement) {
+
+        vLotSLDElement.textContent =
+            result.slDistance != null
+                ? "$" + result.slDistance.toFixed(2)
+                : "--";
+    }
+
+    if (vLotLotElement) {
+
+        vLotLotElement.textContent =
+            result.lotSize != null
+                ? result.lotSize.toFixed(2)
+                : "--";
+    }
+}
+
+
+// ------------------------------------------
+// UPDATE TERMINAL
+// ------------------------------------------
+
+function updateTerminal() {
+
+    const displayCandles =
+        getDisplayCandles();
+
+    if (displayCandles.length === 0) {
+        return;
+    }
+
+    const latest =
+        displayCandles[displayCandles.length - 1];
+
+    if (priceElement) {
+        priceElement.textContent =
+            latest.close.toFixed(2);
+    }
+
+    updateVCandle();
+    updateVSlope();
+    updateVLOT();
+
+    drawChart();
+}
+
+
+// ------------------------------------------
+// SIMULATED MARKET
+// ------------------------------------------
+
+function generatePrice() {
+
+    const movement =
+        (Math.random() - 0.5) * 18;
+
+    simulatedPrice += movement;
+
+    // Keep simulation around NIFTY-like range
+    if (simulatedPrice < 24800) {
+        simulatedPrice = 24800;
+    }
+
+    if (simulatedPrice > 25400) {
+        simulatedPrice = 25400;
+    }
+
+    return simulatedPrice;
+}
+
+
+function simulationTick() {
+
+    // Advance simulated clock
+    simulatedTime =
+        new Date(
+            simulatedTime.getTime() + 10000
+        );
+
+    const price =
+        generatePrice();
+
+    processTick(
+        price,
+        simulatedTime.getTime()
+    );
+
+    updateTerminal();
+}
+
+
+// ------------------------------------------
+// CHART
+// ------------------------------------------
 
 function resizeCanvas() {
+
+    if (!canvas) {
+        return;
+    }
 
     const rect =
         canvas.getBoundingClientRect();
 
-
     canvas.width =
-        rect.width *
-        window.devicePixelRatio;
-
+        rect.width * window.devicePixelRatio;
 
     canvas.height =
-        rect.height *
-        window.devicePixelRatio;
-
+        rect.height * window.devicePixelRatio;
 
     ctx.setTransform(
         window.devicePixelRatio,
@@ -561,30 +441,21 @@ function resizeCanvas() {
         0
     );
 
-
     drawChart();
 }
 
 
-window.addEventListener(
-    "resize",
-    resizeCanvas
-);
-
-
-// ==================================================
-// DRAW CHART
-// ==================================================
-
 function drawChart() {
+
+    if (!canvas || !ctx) {
+        return;
+    }
 
     const width =
         canvas.clientWidth;
 
-
     const height =
         canvas.clientHeight;
-
 
     ctx.clearRect(
         0,
@@ -593,590 +464,257 @@ function drawChart() {
         height
     );
 
-
-    const normalCandles =
+    const data =
         getDisplayCandles();
 
-
-    if (
-        normalCandles.length === 0
-    ) {
-
+    if (data.length === 0) {
         return;
     }
 
+    const visible =
+        data.slice(-60);
 
-    // ----------------------------------------------
-    // V CANDLE DATA
-    // ----------------------------------------------
+    let minPrice = Infinity;
+    let maxPrice = -Infinity;
 
-    const vCandles =
-        getVCandleData();
+    visible.forEach(c => {
 
+        minPrice =
+            Math.min(minPrice, c.low);
 
-    // ----------------------------------------------
-    // PRICE RANGE
-    // ----------------------------------------------
-
-    let highest =
-        Math.max(
-            ...normalCandles.map(
-                c => c.high
-            )
-        );
-
-
-    let lowest =
-        Math.min(
-            ...normalCandles.map(
-                c => c.low
-            )
-        );
-
-
-    // Include V Candle range
-
-    if (vCandles.length > 0) {
-
-        highest =
-            Math.max(
-                highest,
-
-                ...vCandles.map(
-                    c => c.high
-                )
-            );
-
-
-        lowest =
-            Math.min(
-                lowest,
-
-                ...vCandles.map(
-                    c => c.low
-                )
-            );
-    }
-
+        maxPrice =
+            Math.max(maxPrice, c.high);
+    });
 
     const range =
-        highest - lowest;
+        maxPrice - minPrice || 1;
 
+    const padding = 20;
 
-    const padding =
-        range === 0
-            ? 50
-            : range * 0.12;
+    const chartHeight =
+        height - padding * 2;
 
-
-    highest += padding;
-
-    lowest -= padding;
-
-
-    // ----------------------------------------------
-    // PRICE → Y
-    // ----------------------------------------------
-
-    function priceToY(price) {
-
-        return height -
-            (
-                (
-                    price -
-                    lowest
-                )
-                /
-                (
-                    highest -
-                    lowest
-                )
-            )
-            *
-            height;
-    }
-
-
-    // ----------------------------------------------
-    // GRID
-    // ----------------------------------------------
-
-    ctx.strokeStyle =
-        "#20242a";
-
-    ctx.lineWidth = 1;
-
-
-    for (
-        let i = 1;
-        i < 6;
-        i++
-    ) {
-
-        const y =
-            height * i / 6;
-
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            0,
-            y
-        );
-
-        ctx.lineTo(
-            width,
-            y
-        );
-
-        ctx.stroke();
-    }
-
-
-    // ----------------------------------------------
-    // NORMAL CANDLES
-    // ----------------------------------------------
-
-    const spacing =
-        width /
-        normalCandles.length;
-
-
-    const normalWidth =
+    const candleWidth =
         Math.max(
             3,
-            spacing * 0.45
+            (width - padding * 2) /
+            visible.length * 0.65
         );
 
+    visible.forEach((candle, index) => {
 
-    normalCandles.forEach(
-        (candle, index) => {
+        const x =
+            padding +
+            index *
+            ((width - padding * 2) /
+            visible.length) +
+            ((width - padding * 2) /
+            visible.length) / 2;
+
+        const openY =
+            padding +
+            (maxPrice - candle.open) /
+            range *
+            chartHeight;
+
+        const closeY =
+            padding +
+            (maxPrice - candle.close) /
+            range *
+            chartHeight;
+
+        const highY =
+            padding +
+            (maxPrice - candle.high) /
+            range *
+            chartHeight;
+
+        const lowY =
+            padding +
+            (maxPrice - candle.low) /
+            range *
+            chartHeight;
+
+        const bullish =
+            candle.close >= candle.open;
+
+        // Wick
+        ctx.beginPath();
+
+        ctx.moveTo(x, highY);
+        ctx.lineTo(x, lowY);
+
+        ctx.strokeStyle =
+            bullish ? "#22c55e" : "#ef4444";
+
+        ctx.lineWidth = 1;
+
+        ctx.stroke();
+
+        // Body
+        const bodyTop =
+            Math.min(openY, closeY);
+
+        const bodyBottom =
+            Math.max(openY, closeY);
+
+        const bodyHeight =
+            Math.max(
+                1,
+                bodyBottom - bodyTop
+            );
+
+        ctx.fillStyle =
+            bullish ? "#22c55e" : "#ef4444";
+
+        ctx.fillRect(
+            x - candleWidth / 2,
+            bodyTop,
+            candleWidth,
+            bodyHeight
+        );
+    });
+
+
+    // --------------------------------------
+    // V CANDLE OVERLAY
+    // --------------------------------------
+
+    if (typeof calculateVCandle === "function") {
+
+        const vData =
+            calculateVCandle(
+                data,
+                SETTINGS.vCandleSmooth,
+                SETTINGS.vCandleAfter,
+                SETTINGS.vCandleDoji
+            );
+
+        const visibleV =
+            vData.slice(-60);
+
+        visibleV.forEach((v, index) => {
+
+            if (
+                v.open == null ||
+                v.high == null ||
+                v.low == null ||
+                v.close == null
+            ) {
+                return;
+            }
 
             const x =
-                spacing * index
-                +
-                spacing / 2;
-
+                padding +
+                index *
+                ((width - padding * 2) /
+                visibleV.length) +
+                ((width - padding * 2) /
+                visibleV.length) / 2;
 
             const openY =
-                priceToY(
-                    candle.open
-                );
-
+                padding +
+                (maxPrice - v.open) /
+                range *
+                chartHeight;
 
             const closeY =
-                priceToY(
-                    candle.close
-                );
-
+                padding +
+                (maxPrice - v.close) /
+                range *
+                chartHeight;
 
             const highY =
-                priceToY(
-                    candle.high
-                );
-
+                padding +
+                (maxPrice - v.high) /
+                range *
+                chartHeight;
 
             const lowY =
-                priceToY(
-                    candle.low
-                );
+                padding +
+                (maxPrice - v.low) /
+                range *
+                chartHeight;
 
+            let color;
 
-            const bullish =
-                candle.close >=
-                candle.open;
-
-
-            ctx.strokeStyle =
-                bullish
-                    ? "#35d07f"
-                    : "#ff5f56";
-
-
-            ctx.lineWidth = 1;
-
-
-            // Wick
+            if (v.isDoji) {
+                color = "#888888";
+            } else if (v.color === "bullish") {
+                color = "#86efac";
+            } else {
+                color = "#fca5a5";
+            }
 
             ctx.beginPath();
 
-            ctx.moveTo(
-                x,
-                highY
-            );
+            ctx.moveTo(x, highY);
+            ctx.lineTo(x, lowY);
 
-            ctx.lineTo(
-                x,
-                lowY
-            );
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
 
             ctx.stroke();
 
-
-            // Body
-
             const bodyTop =
-                Math.min(
-                    openY,
-                    closeY
-                );
+                Math.min(openY, closeY);
 
+            const bodyBottom =
+                Math.max(openY, closeY);
 
             const bodyHeight =
                 Math.max(
                     2,
-                    Math.abs(
-                        openY -
-                        closeY
-                    )
+                    bodyBottom - bodyTop
                 );
 
-
-            ctx.fillStyle =
-                bullish
-                    ? "#35d07f"
-                    : "#ff5f56";
-
+            ctx.fillStyle = color;
 
             ctx.fillRect(
-                x -
-                normalWidth / 2,
-
+                x - candleWidth / 2,
                 bodyTop,
-
-                normalWidth,
-
+                candleWidth,
                 bodyHeight
             );
-
-        }
-    );
-
-
-    // ----------------------------------------------
-    // V CANDLE OVERLAY
-    // ----------------------------------------------
-
-    if (vCandles.length > 0) {
-
-        const vSpacing =
-            width /
-            vCandles.length;
-
-
-        const vWidth =
-            Math.max(
-                5,
-                vSpacing * 0.68
-            );
-
-
-        vCandles.forEach(
-            (candle, index) => {
-
-                const x =
-                    vSpacing * index
-                    +
-                    vSpacing / 2;
-
-
-                const openY =
-                    priceToY(
-                        candle.open
-                    );
-
-
-                const closeY =
-                    priceToY(
-                        candle.close
-                    );
-
-
-                const highY =
-                    priceToY(
-                        candle.high
-                    );
-
-
-                const lowY =
-                    priceToY(
-                        candle.low
-                    );
-
-
-                // V Candle colour
-
-                let color;
-
-
-                if (
-                    candle.isDoji
-                ) {
-
-                    color =
-                        "#777777";
-
-                } else if (
-                    candle.color ===
-                    "bullish"
-                ) {
-
-                    color =
-                        "#66d98a";
-
-                } else {
-
-                    color =
-                        "#ff7770";
-                }
-
-
-                // Wick
-
-                ctx.strokeStyle =
-                    color;
-
-                ctx.lineWidth = 2;
-
-
-                ctx.beginPath();
-
-                ctx.moveTo(
-                    x,
-                    highY
-                );
-
-                ctx.lineTo(
-                    x,
-                    lowY
-                );
-
-                ctx.stroke();
-
-
-                // Body
-
-                const bodyTop =
-                    Math.min(
-                        openY,
-                        closeY
-                    );
-
-
-                const bodyHeight =
-                    Math.max(
-                        3,
-                        Math.abs(
-                            openY -
-                            closeY
-                        )
-                    );
-
-
-                ctx.fillStyle =
-                    color;
-
-
-                ctx.globalAlpha =
-                    0.45;
-
-
-                ctx.fillRect(
-                    x -
-                    vWidth / 2,
-
-                    bodyTop,
-
-                    vWidth,
-
-                    bodyHeight
-                );
-
-
-                ctx.globalAlpha =
-                    1;
-
-            }
-        );
+        });
     }
-
-
-    // ----------------------------------------------
-    // CURRENT PRICE LINE
-    // ----------------------------------------------
-
-    const last =
-        normalCandles[
-            normalCandles.length - 1
-        ];
-
-
-    const lastY =
-        priceToY(
-            last.close
-        );
-
-
-    ctx.strokeStyle =
-        "#777";
-
-
-    ctx.setLineDash(
-        [4, 4]
-    );
-
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-        0,
-        lastY
-    );
-
-    ctx.lineTo(
-        width,
-        lastY
-    );
-
-    ctx.stroke();
-
-
-    ctx.setLineDash([]);
-
-
-    // ----------------------------------------------
-    // PRICE LABEL
-    // ----------------------------------------------
-
-    ctx.fillStyle =
-        "#ddd";
-
-
-    ctx.font =
-        "11px Arial";
-
-
-    ctx.fillText(
-        last.close.toFixed(2),
-        8,
-        Math.max(
-            14,
-            lastY - 5
-        )
-    );
 }
 
 
-// ==================================================
+// ------------------------------------------
+// CONNECTION STATUS
+// ------------------------------------------
+
+if (connectionElement) {
+    connectionElement.textContent =
+        "SIMULATION";
+}
+
+
+// ------------------------------------------
 // SYMBOL
-// ==================================================
+// ------------------------------------------
 
-symbolElement.addEventListener(
-    "change",
-    function () {
-
-        chartSymbol.textContent =
-            symbolElement.value;
-
-    }
-);
-
-
-// ==================================================
-// DEBUG
-// ==================================================
-
-function printDebug() {
-
-    const vData =
-        getVCandleData();
-
-
-    console.log(
-        "=============================="
-    );
-
-
-    console.log(
-        "V CANDLE TERMINAL"
-    );
-
-
-    console.log(
-        "Normal candles:",
-        candles.length
-    );
-
-
-    console.log(
-        "Current candle:",
-        currentCandle
-    );
-
-
-    if (vData.length > 0) {
-
-        console.log(
-            "Latest V Candle:",
-            vData[
-                vData.length - 1
-            ]
-        );
-
-    }
-
-
-    console.log(
-        "=============================="
-    );
+if (symbolElement) {
+    symbolElement.textContent =
+        SETTINGS.symbol;
 }
 
 
-// ==================================================
+// ------------------------------------------
 // START
-// ==================================================
+// ------------------------------------------
+
+window.addEventListener(
+    "resize",
+    resizeCanvas
+);
 
 resizeCanvas();
 
-updateTerminal();
-
-
 setInterval(
-    generateTick,
+    simulationTick,
     500
 );
 
-
-setInterval(
-    printDebug,
-    10000
-);
-
-
-console.log(
-    "================================"
-);
-
-console.log(
-    "V CANDLE TERMINAL"
-);
-
-console.log(
-    "PHASE 3 — V CANDLE ENGINE READY"
-);
-
-console.log(
-    "SMOOTH LEN: 45"
-);
-
-console.log(
-    "AFTER LEN: 45"
-);
-
-console.log(
-    "DOJI: 0.03"
-);
-
-console.log(
-    "================================"
-);
+simulationTick();
