@@ -1,0 +1,258 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #0b0d10;
+    color: #e8e8e8;
+    font-family: Arial, Helvetica, sans-serif;
+    min-height: 100vh;
+}
+
+
+/* TOP BAR */
+
+.topbar {
+    height: 70px;
+    background: #111419;
+    border-bottom: 1px solid #292d33;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 22px;
+}
+
+.topbar h1 {
+    font-size: 21px;
+    letter-spacing: 2px;
+}
+
+.topbar span {
+    font-size: 10px;
+    color: #777;
+    letter-spacing: 1px;
+}
+
+
+/* CONNECTION */
+
+.connection {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background: #777;
+    border-radius: 50%;
+}
+
+
+/* MAIN */
+
+main {
+    width: 95%;
+    max-width: 1200px;
+    margin: 18px auto;
+}
+
+
+/* MARKET BAR */
+
+.market-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+
+    margin-bottom: 14px;
+}
+
+.market-item {
+    background: #111419;
+    border: 1px solid #292d33;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.market-item label {
+    display: block;
+    color: #777;
+    font-size: 9px;
+    letter-spacing: 1px;
+    margin-bottom: 7px;
+}
+
+.market-item strong {
+    font-size: 16px;
+}
+
+select {
+    width: 100%;
+    background: #191d22;
+    color: white;
+    border: 1px solid #30353b;
+    padding: 6px;
+    border-radius: 5px;
+}
+
+
+/* CHART */
+
+.chart-card {
+    background: #111419;
+    border: 1px solid #292d33;
+    border-radius: 8px;
+
+    padding: 14px;
+
+    margin-bottom: 14px;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+
+    color: #aaa;
+    font-size: 12px;
+
+    margin-bottom: 10px;
+}
+
+.chart-header strong {
+    color: white;
+    font-size: 14px;
+}
+
+#chart {
+    width: 100%;
+    height: 430px;
+    display: block;
+
+    background: #0b0d10;
+    border-radius: 5px;
+}
+
+
+/* INDICATORS */
+
+.indicator-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+
+    margin-bottom: 14px;
+}
+
+.indicator-card {
+    background: #111419;
+    border: 1px solid #292d33;
+    border-radius: 8px;
+
+    padding: 15px;
+}
+
+.indicator-title {
+    display: flex;
+    justify-content: space-between;
+
+    color: #aaa;
+    font-size: 11px;
+}
+
+.indicator-title span:last-child {
+    color: #777;
+}
+
+.indicator-value {
+    font-size: 24px;
+    margin-top: 15px;
+}
+
+.indicator-description {
+    color: #666;
+    font-size: 10px;
+    margin-top: 7px;
+}
+
+
+/* TERMINAL */
+
+.terminal-card {
+    background: #111419;
+    border: 1px solid #292d33;
+    border-radius: 8px;
+
+    padding: 16px;
+}
+
+.terminal-card h2 {
+    font-size: 12px;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+
+    padding: 10px 0;
+    border-bottom: 1px solid #20242a;
+
+    font-size: 12px;
+}
+
+.status-row span {
+    color: #777;
+}
+
+.status-row strong {
+    color: #ddd;
+}
+
+
+/* FOOTER */
+
+footer {
+    text-align: center;
+    color: #555;
+    font-size: 9px;
+    padding: 25px;
+}
+
+
+/* MOBILE */
+
+@media (max-width: 700px) {
+
+    .topbar {
+        padding: 0 14px;
+    }
+
+    .topbar h1 {
+        font-size: 17px;
+    }
+
+    main {
+        width: 94%;
+    }
+
+    .market-bar {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .indicator-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #chart {
+        height: 330px;
+    }
+
+  }
