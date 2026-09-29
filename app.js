@@ -1,20 +1,30 @@
 /*
-    V CANDLE TERMINAL
-    PHASE 1
+====================================================
+ V CANDLE TERMINAL
+ PHASE 2 — 3 MINUTE CANDLE ENGINE
+====================================================
 
-    Current:
-    - Simulated OHLC data
-    - 3-minute candles
-    - Candlestick chart
+Current:
+✓ Simulated live ticks
+✓ 3-minute candle construction
+✓ OHLC
+✓ Volume
+✓ Live candle updating
+✓ Closed candle storage
+✓ Candlestick chart
 
-    Later:
-    - FYERS WebSocket
-    - Real-time data
-    - V Candle V2
-    - V Slope
-    - VLOT
+Later:
+→ FYERS WebSocket
+→ Exact V Candle V2
+→ V Slope
+→ VLOT
+====================================================
 */
 
+
+// ==================================================
+// DOM
+// ==================================================
 
 const canvas = document.getElementById("chart");
 const ctx = canvas.getContext("2d");
@@ -27,211 +37,338 @@ const symbolElement = document.getElementById("symbol");
 const chartSymbol = document.getElementById("chartSymbol");
 
 
-// --------------------------------------------------
-// SAMPLE 3-MINUTE OHLC DATA
-// --------------------------------------------------
+// ==================================================
+// SETTINGS
+// ==================================================
 
-let candles = [
-    { time: "13:00", open: 25100, high: 25135, low: 25080, close: 25120 },
-    { time: "13:03", open: 25120, high: 25170, low: 25105, close: 25155 },
-    { time: "13:06", open: 25155, high: 25190, low: 25130, close: 25140 },
-    { time: "13:09", open: 25140, high: 25160, low: 25095, close: 25110 },
-    { time: "13:12", open: 25110, high: 25145, low: 25070, close: 25085 },
-    { time: "13:15", open: 25085, high: 25125, low: 25060, close: 25115 },
-    { time: "13:18", open: 25115, high: 25180, low: 25100, close: 25170 },
-    { time: "13:21", open: 25170, high: 25210, low: 25145, close: 25200 },
-    { time: "13:24", open: 25200, high: 25235, low: 25170, close: 25190 },
-    { time: "13:27", open: 25190, high: 25220, low: 25150, close: 25165 },
-    { time: "13:30", open: 25165, high: 25200, low: 25125, close: 25140 },
-    { time: "13:33", open: 25140, high: 25175, low: 25110, close: 25170 },
-    { time: "13:36", open: 25170, high: 25240, low: 25160, close: 25230 },
-    { time: "13:39", open: 25230, high: 25270, low: 25205, close: 25255 },
-    { time: "13:42", open: 25255, high: 25290, low: 25220, close: 25235 },
-    { time: "13:45", open: 25235, high: 25260, low: 25190, close: 25205 },
-    { time: "13:48", open: 25205, high: 25240, low: 25170, close: 25185 },
-    { time: "13:51", open: 25185, high: 25230, low: 25160, close: 25215 },
-    { time: "13:54", open: 25215, high: 25265, low: 25200, close: 25250 },
-    { time: "13:57", open: 25250, high: 25290, low: 25230, close: 25275 }
-];
+const TIMEFRAME_MINUTES = 3;
+
+const MAX_CANDLES = 100;
+
+const START_PRICE = 25100;
 
 
-// --------------------------------------------------
-// RESIZE CANVAS
-// --------------------------------------------------
+// ==================================================
+// CANDLE STORAGE
+// ==================================================
 
-function resizeCanvas() {
+// Completed candles
+let candles = [];
 
-    const rect = canvas.getBoundingClientRect();
+// Current candle being built
+let currentCandle = null;
 
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
 
-    ctx.setTransform(
-        window.devicePixelRatio,
-        0,
-        0,
-        window.devicePixelRatio,
-        0,
-        0
-    );
+// ==================================================
+// SIMULATED MARKET
+// ==================================================
 
-    drawChart();
+let simulatedPrice = START_PRICE;
+
+let simulatedVolume = 0;
+
+
+// Starting simulated time
+
+let simulatedTime = new Date();
+
+simulatedTime.setHours(13);
+simulatedTime.setMinutes(0);
+simulatedTime.setSeconds(0);
+simulatedTime.setMilliseconds(0);
+
+
+// ==================================================
+// HELPER — FORMAT TIME
+// ==================================================
+
+function formatTime(date) {
+
+    const hours = String(
+        date.getHours()
+    ).padStart(2, "0");
+
+    const minutes = String(
+        date.getMinutes()
+    ).padStart(2, "0");
+
+    return `${hours}:${minutes}`;
 }
 
-window.addEventListener("resize", resizeCanvas);
+
+// ==================================================
+// HELPER — GET 3-MINUTE CANDLE START
+// ==================================================
+
+function getCandleStart(date) {
+
+    const result = new Date(date);
+
+    const minutes = result.getMinutes();
+
+    const candleMinute =
+        Math.floor(minutes / TIMEFRAME_MINUTES)
+        * TIMEFRAME_MINUTES;
+
+    result.setMinutes(candleMinute);
+
+    result.setSeconds(0);
+
+    result.setMilliseconds(0);
+
+    return result;
+}
 
 
-// --------------------------------------------------
-// DRAW CHART
-// --------------------------------------------------
+// ==================================================
+// CREATE NEW CANDLE
+// ==================================================
 
-function drawChart() {
+function createCandle(price, time, volume) {
 
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    const candleStart =
+        getCandleStart(time);
 
-    ctx.clearRect(0, 0, width, height);
+    return {
+
+        time: formatTime(candleStart),
+
+        timestamp: candleStart.getTime(),
+
+        open: price,
+
+        high: price,
+
+        low: price,
+
+        close: price,
+
+        volume: volume
+
+    };
+}
 
 
-    if (candles.length === 0) {
+// ==================================================
+// PROCESS TICK
+// ==================================================
+
+function processTick(price, time, volume = 1) {
+
+    const candleStart =
+        getCandleStart(time);
+
+
+    // ----------------------------------------------
+    // FIRST CANDLE
+    // ----------------------------------------------
+
+    if (currentCandle === null) {
+
+        currentCandle =
+            createCandle(
+                price,
+                time,
+                volume
+            );
+
         return;
     }
 
 
-    // Find price range
+    // ----------------------------------------------
+    // SAME 3-MINUTE CANDLE
+    // ----------------------------------------------
 
-    let highest = Math.max(...candles.map(c => c.high));
-    let lowest = Math.min(...candles.map(c => c.low));
+    if (
+        candleStart.getTime()
+        === currentCandle.timestamp
+    ) {
 
-    const padding = (highest - lowest) * 0.12;
+        currentCandle.high =
+            Math.max(
+                currentCandle.high,
+                price
+            );
 
-    highest += padding;
-    lowest -= padding;
+        currentCandle.low =
+            Math.min(
+                currentCandle.low,
+                price
+            );
 
+        currentCandle.close =
+            price;
 
-    function y(price) {
+        currentCandle.volume += volume;
 
-        return height -
-            ((price - lowest) / (highest - lowest)) *
-            height;
+        return;
     }
 
 
-    // Grid
+    // ----------------------------------------------
+    // NEW 3-MINUTE CANDLE
+    // ----------------------------------------------
 
-    ctx.strokeStyle = "#20242a";
-    ctx.lineWidth = 1;
-
-    for (let i = 1; i < 6; i++) {
-
-        const gy = height * i / 6;
-
-        ctx.beginPath();
-        ctx.moveTo(0, gy);
-        ctx.lineTo(width, gy);
-        ctx.stroke();
-    }
+    closeCurrentCandle();
 
 
-    // Candle dimensions
-
-    const spacing = width / candles.length;
-    const candleWidth = Math.max(4, spacing * 0.55);
-
-
-    candles.forEach((candle, index) => {
-
-        const x = spacing * index + spacing / 2;
-
-        const openY = y(candle.open);
-        const closeY = y(candle.close);
-        const highY = y(candle.high);
-        const lowY = y(candle.low);
-
-
-        const bullish = candle.close >= candle.open;
-
-
-        // Wick
-
-        ctx.strokeStyle = bullish
-            ? "#35d07f"
-            : "#ff5f56";
-
-        ctx.lineWidth = 1;
-
-        ctx.beginPath();
-
-        ctx.moveTo(x, highY);
-        ctx.lineTo(x, lowY);
-
-        ctx.stroke();
-
-
-        // Body
-
-        const bodyTop = Math.min(openY, closeY);
-
-        const bodyHeight = Math.max(
-            2,
-            Math.abs(openY - closeY)
+    currentCandle =
+        createCandle(
+            price,
+            time,
+            volume
         );
-
-
-        ctx.fillStyle = bullish
-            ? "#35d07f"
-            : "#ff5f56";
-
-
-        ctx.fillRect(
-            x - candleWidth / 2,
-            bodyTop,
-            candleWidth,
-            bodyHeight
-        );
-
-    });
-
-
-    // Last price line
-
-    const last = candles[candles.length - 1];
-
-    const lastY = y(last.close);
-
-    ctx.strokeStyle = "#777";
-    ctx.setLineDash([4, 4]);
-
-    ctx.beginPath();
-
-    ctx.moveTo(0, lastY);
-    ctx.lineTo(width, lastY);
-
-    ctx.stroke();
-
-    ctx.setLineDash([]);
-
-
-    // Price label
-
-    ctx.fillStyle = "#ddd";
-    ctx.font = "11px Arial";
-
-    ctx.fillText(
-        last.close.toFixed(2),
-        8,
-        Math.max(14, lastY - 5)
-    );
 }
 
 
-// --------------------------------------------------
+// ==================================================
+// CLOSE CURRENT CANDLE
+// ==================================================
+
+function closeCurrentCandle() {
+
+    if (!currentCandle) {
+        return;
+    }
+
+
+    // Save completed candle
+
+    candles.push({
+        ...currentCandle
+    });
+
+
+    // Limit stored candles
+
+    if (candles.length > MAX_CANDLES) {
+
+        candles.shift();
+
+    }
+
+
+    // Update terminal
+
+    updateTerminal();
+
+
+    // Draw
+
+    drawChart();
+}
+
+
+// ==================================================
+// SIMULATE MARKET TICK
+// ==================================================
+
+function generateTick() {
+
+    /*
+        Small random movement.
+
+        This is ONLY test data.
+        It will later be replaced by FYERS ticks.
+    */
+
+
+    const movement =
+        (Math.random() - 0.48)
+        * 18;
+
+
+    simulatedPrice += movement;
+
+
+    // Prevent unrealistic negative movement
+
+    if (simulatedPrice < 100) {
+
+        simulatedPrice = 100;
+
+    }
+
+
+    const volume =
+        Math.floor(
+            Math.random() * 500
+        ) + 100;
+
+
+    simulatedVolume += volume;
+
+
+    processTick(
+        simulatedPrice,
+        simulatedTime,
+        volume
+    );
+
+
+    // Move simulated clock forward
+
+    simulatedTime =
+        new Date(
+            simulatedTime.getTime()
+            + 10000
+        );
+
+
+    // Update live display
+
+    updateLiveDisplay();
+}
+
+
+// ==================================================
+// LIVE DISPLAY
+// ==================================================
+
+function updateLiveDisplay() {
+
+    if (!currentCandle) {
+        return;
+    }
+
+
+    priceElement.textContent =
+        currentCandle.close.toFixed(2);
+
+
+    lastTimeElement.textContent =
+        currentCandle.time;
+
+
+    statusElement.textContent =
+        "SIMULATION";
+
+
+    document.getElementById(
+        "dataSource"
+    ).textContent =
+        "SIMULATED TICKS";
+
+
+    document.getElementById(
+        "candleEngine"
+    ).textContent =
+        "3 MIN OHLC";
+}
+
+
+// ==================================================
 // TERMINAL UPDATE
-// --------------------------------------------------
+// ==================================================
 
 function updateTerminal() {
 
-    const last = candles[candles.length - 1];
+    const last =
+        candles.length > 0
+            ? candles[candles.length - 1]
+            : currentCandle;
+
 
     if (!last) {
         return;
@@ -250,7 +387,9 @@ function updateTerminal() {
         "SIMULATION";
 
 
-    // Temporary placeholder values
+    // ----------------------------------------------
+    // INDICATOR PLACEHOLDERS
+    // ----------------------------------------------
 
     document.getElementById(
         "vCandleValue"
@@ -268,9 +407,365 @@ function updateTerminal() {
 }
 
 
-// --------------------------------------------------
+// ==================================================
+// CANVAS RESIZE
+// ==================================================
+
+function resizeCanvas() {
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+
+    canvas.width =
+        rect.width *
+        window.devicePixelRatio;
+
+
+    canvas.height =
+        rect.height *
+        window.devicePixelRatio;
+
+
+    ctx.setTransform(
+        window.devicePixelRatio,
+        0,
+        0,
+        window.devicePixelRatio,
+        0,
+        0
+    );
+
+
+    drawChart();
+}
+
+
+window.addEventListener(
+    "resize",
+    resizeCanvas
+);
+
+
+// ==================================================
+// DRAW CANDLESTICK CHART
+// ==================================================
+
+function drawChart() {
+
+    const width =
+        canvas.clientWidth;
+
+
+    const height =
+        canvas.clientHeight;
+
+
+    ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    // ----------------------------------------------
+    // COMBINE CLOSED + CURRENT CANDLE
+    // ----------------------------------------------
+
+    let displayCandles =
+        [...candles];
+
+
+    if (currentCandle) {
+
+        displayCandles.push(
+            currentCandle
+        );
+
+    }
+
+
+    if (displayCandles.length === 0) {
+        return;
+    }
+
+
+    // ----------------------------------------------
+    // PRICE RANGE
+    // ----------------------------------------------
+
+    let highest =
+        Math.max(
+            ...displayCandles.map(
+                candle => candle.high
+            )
+        );
+
+
+    let lowest =
+        Math.min(
+            ...displayCandles.map(
+                candle => candle.low
+            )
+        );
+
+
+    const range =
+        highest - lowest;
+
+
+    const padding =
+        range === 0
+            ? 50
+            : range * 0.12;
+
+
+    highest += padding;
+
+    lowest -= padding;
+
+
+    // ----------------------------------------------
+    // PRICE → Y
+    // ----------------------------------------------
+
+    function priceToY(price) {
+
+        return height -
+            (
+                (price - lowest)
+                /
+                (highest - lowest)
+            )
+            * height;
+    }
+
+
+    // ----------------------------------------------
+    // GRID
+    // ----------------------------------------------
+
+    ctx.strokeStyle =
+        "#20242a";
+
+    ctx.lineWidth = 1;
+
+
+    for (let i = 1; i < 6; i++) {
+
+        const y =
+            height * i / 6;
+
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            y
+        );
+
+        ctx.lineTo(
+            width,
+            y
+        );
+
+        ctx.stroke();
+    }
+
+
+    // ----------------------------------------------
+    // CANDLE WIDTH
+    // ----------------------------------------------
+
+    const spacing =
+        width /
+        displayCandles.length;
+
+
+    const candleWidth =
+        Math.max(
+            3,
+            spacing * 0.55
+        );
+
+
+    // ----------------------------------------------
+    // DRAW CANDLES
+    // ----------------------------------------------
+
+    displayCandles.forEach(
+        (candle, index) => {
+
+            const x =
+                spacing * index
+                +
+                spacing / 2;
+
+
+            const openY =
+                priceToY(
+                    candle.open
+                );
+
+
+            const closeY =
+                priceToY(
+                    candle.close
+                );
+
+
+            const highY =
+                priceToY(
+                    candle.high
+                );
+
+
+            const lowY =
+                priceToY(
+                    candle.low
+                );
+
+
+            const bullish =
+                candle.close >=
+                candle.open;
+
+
+            // Wick
+
+            ctx.strokeStyle =
+                bullish
+                    ? "#35d07f"
+                    : "#ff5f56";
+
+
+            ctx.lineWidth = 1;
+
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                x,
+                highY
+            );
+
+            ctx.lineTo(
+                x,
+                lowY
+            );
+
+            ctx.stroke();
+
+
+            // Body
+
+            const bodyTop =
+                Math.min(
+                    openY,
+                    closeY
+                );
+
+
+            const bodyHeight =
+                Math.max(
+                    2,
+                    Math.abs(
+                        openY - closeY
+                    )
+                );
+
+
+            ctx.fillStyle =
+                bullish
+                    ? "#35d07f"
+                    : "#ff5f56";
+
+
+            ctx.fillRect(
+                x -
+                candleWidth / 2,
+
+                bodyTop,
+
+                candleWidth,
+
+                bodyHeight
+            );
+
+        }
+    );
+
+
+    // ----------------------------------------------
+    // CURRENT PRICE LINE
+    // ----------------------------------------------
+
+    const last =
+        displayCandles[
+            displayCandles.length - 1
+        ];
+
+
+    const lastY =
+        priceToY(
+            last.close
+        );
+
+
+    ctx.strokeStyle =
+        "#777";
+
+
+    ctx.setLineDash(
+        [4, 4]
+    );
+
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        0,
+        lastY
+    );
+
+    ctx.lineTo(
+        width,
+        lastY
+    );
+
+    ctx.stroke();
+
+
+    ctx.setLineDash([]);
+
+
+    // ----------------------------------------------
+    // PRICE LABEL
+    // ----------------------------------------------
+
+    ctx.fillStyle =
+        "#ddd";
+
+
+    ctx.font =
+        "11px Arial";
+
+
+    ctx.fillText(
+        last.close.toFixed(2),
+        8,
+        Math.max(
+            14,
+            lastY - 5
+        )
+    );
+}
+
+
+// ==================================================
 // SYMBOL CHANGE
-// --------------------------------------------------
+// ==================================================
 
 symbolElement.addEventListener(
     "change",
@@ -283,14 +778,81 @@ symbolElement.addEventListener(
 );
 
 
-// --------------------------------------------------
-// START
-// --------------------------------------------------
+// ==================================================
+// DEBUG INFORMATION
+// ==================================================
+
+function printDebug() {
+
+    console.log(
+        "-----------------------------"
+    );
+
+    console.log(
+        "V CANDLE TERMINAL"
+    );
+
+    console.log(
+        "Completed candles:",
+        candles.length
+    );
+
+    console.log(
+        "Current candle:",
+        currentCandle
+    );
+
+    console.log(
+        "Current price:",
+        simulatedPrice
+    );
+
+    console.log(
+        "-----------------------------"
+    );
+}
+
+
+// ==================================================
+// START TERMINAL
+// ==================================================
 
 resizeCanvas();
 
-updateTerminal();
+
+// Generate simulated ticks
+// every 10 seconds of simulated market time
+
+setInterval(
+    generateTick,
+    500
+);
+
+
+// Debug every 10 seconds
+
+setInterval(
+    printDebug,
+    10000
+);
+
 
 console.log(
-    "V CANDLE TERMINAL - PHASE 1 READY"
+    "================================"
+);
+
+console.log(
+    "V CANDLE TERMINAL"
+);
+
+console.log(
+    "PHASE 2 — CANDLE ENGINE READY"
+);
+
+console.log(
+    "3 MINUTE OHLC ENGINE ACTIVE"
+);
+
+console.log(
+    "================================"
 );
