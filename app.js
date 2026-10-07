@@ -1,10 +1,12 @@
 // ==========================================
-// AJAY V CANDLE TERMINAL
+// V CANDLE TERMINAL
+// PROFESSIONAL CHART UI V1
 // ==========================================
 
-// ------------------------------------------
+
+// ==========================================
 // SETTINGS
-// ------------------------------------------
+// ==========================================
 
 const SETTINGS = {
 
@@ -12,566 +14,433 @@ const SETTINGS = {
 
     timeframeMinutes: 3,
 
-    // V CANDLE V2
-    vCandleSmooth: 45,
-    vCandleAfter: 45,
-    vCandleDoji: 0.03,
+    vCandle: {
+        smoothLen: 45,
+        afterLen: 45,
+        dojiThreshold: 0.03
+    },
 
-    // V SLOPE
-    vSlopeSmooth: 60,
-    vSlopeAfter: 60,
-    vSlopeEMA: 5,
-    vSlopeNeutral: 0.03,
+    vSlope: {
+        smoothLen: 60,
+        afterLen: 60,
+        slopeEMA: 5,
+        neutralZone: 0.03
+    },
 
-    // VLOT
-    vLotATRLength: 14,
-    vLotATRMultiplier: 1.3,
-    vLotRisk: 5,
-    vLotMode: "AUTO ATR",
-    vLotManualSLD: 10
+    vlot: {
+        atrLength: 14,
+        atrMultiplier: 1.3,
+        risk: 5,
+        sldMode: "AUTO ATR",
+        manualSLD: 10
+    }
+
 };
 
 
-// ------------------------------------------
+// ==========================================
 // MARKET DATA
-// ------------------------------------------
+// ==========================================
 
 let candles = [];
 
-let currentCandle = null;
-
-let simulatedPrice = 25100;
+let currentPrice = 25150;
 
 let simulatedTime =
-    new Date(2026, 0, 1, 13, 0, 0);
+    Date.now() - (150 * 3 * 60 * 1000);
 
 
-// ------------------------------------------
-// DOM ELEMENTS
-// ------------------------------------------
-
-const priceElement =
-    document.getElementById("price");
-
-const statusElement =
-    document.getElementById("status");
-
-const connectionElement =
-    document.getElementById("connectionStatus");
-
-const symbolElement =
-    document.getElementById("symbol");
-
-
-// V CANDLE
-const vCandleValueElement =
-    document.getElementById("vCandleValue");
-
-const vCandleSignalElement =
-    document.getElementById("vCandleSignal");
-
-
-// V SLOPE
-const vSlopeValueElement =
-    document.getElementById("vSlopeValue");
-
-const vSlopeSignalElement =
-    document.getElementById("vSlopeSignal");
-
-
-// VLOT
-const vlotValueElement =
-    document.getElementById("vlotValue");
-
-const vlotSignalElement =
-    document.getElementById("vlotSignal");
-
-
-// ------------------------------------------
+// ==========================================
 // CANVAS
-// ------------------------------------------
+// ==========================================
 
-const canvas =
+const chartCanvas =
     document.getElementById("chart");
 
-const ctx =
-    canvas ? canvas.getContext("2d") : null;
+const slopeCanvas =
+    document.getElementById("slopeChart");
 
+const chartCtx =
+    chartCanvas.getContext("2d");
 
-// ------------------------------------------
-// 3 MINUTE CANDLE ENGINE
-// ------------------------------------------
+const slopeCtx =
+    slopeCanvas.getContext("2d");
 
-function getCandleStart(timestamp) {
 
-    const date = new Date(timestamp);
-
-    const minutes = date.getMinutes();
-
-    const candleMinute =
-        Math.floor(minutes / SETTINGS.timeframeMinutes)
-        * SETTINGS.timeframeMinutes;
-
-    date.setMinutes(candleMinute);
-    date.setSeconds(0);
-    date.setMilliseconds(0);
-
-    return date.getTime();
-}
-
-
-function processTick(price, timestamp) {
-
-    const candleStart =
-        getCandleStart(timestamp);
-
-    // NEW CANDLE
-    if (
-        currentCandle === null ||
-        currentCandle.time !== candleStart
-    ) {
-
-        // Save previous candle
-        if (currentCandle !== null) {
-
-            candles.push({
-                ...currentCandle
-            });
-
-            // Keep last 150 candles
-            if (candles.length > 150) {
-                candles.shift();
-            }
-        }
-
-        // Create new candle
-        currentCandle = {
-
-            time: candleStart,
-
-            open: price,
-            high: price,
-            low: price,
-            close: price,
-
-            volume: 1
-        };
-
-    } else {
-
-        // UPDATE CURRENT CANDLE
-
-        currentCandle.high =
-            Math.max(
-                currentCandle.high,
-                price
-            );
-
-        currentCandle.low =
-            Math.min(
-                currentCandle.low,
-                price
-            );
-
-        currentCandle.close =
-            price;
-
-        currentCandle.volume++;
-    }
-}
-
-
-// ------------------------------------------
-// DISPLAY CANDLES
-// ------------------------------------------
-
-function getDisplayCandles() {
-
-    const data =
-        [...candles];
-
-    if (currentCandle !== null) {
-
-        data.push({
-            ...currentCandle
-        });
-    }
-
-    return data;
-}
-
-
-// ------------------------------------------
-// V CANDLE V2
-// ------------------------------------------
-
-function updateVCandle() {
-
-    const data =
-        getDisplayCandles();
-
-    if (
-        typeof calculateVCandle !== "function" ||
-        data.length === 0
-    ) {
-        return;
-    }
-
-    const result =
-        calculateVCandle(
-            data,
-            SETTINGS.vCandleSmooth,
-            SETTINGS.vCandleAfter,
-            SETTINGS.vCandleDoji
-        );
-
-    if (
-        !result ||
-        result.length === 0
-    ) {
-        return;
-    }
-
-    const latest =
-        result[result.length - 1];
-
-    if (!latest) {
-        return;
-    }
-
-
-    // VALUE
-
-    if (vCandleValueElement) {
-
-        vCandleValueElement.textContent =
-            latest.close != null
-                ? latest.close.toFixed(2)
-                : "--";
-    }
-
-
-    // SIGNAL
-
-    if (vCandleSignalElement) {
-
-        if (latest.isDoji) {
-
-            vCandleSignalElement.textContent =
-                "DOJI";
-
-        } else if (
-            latest.color === "bullish"
-        ) {
-
-            vCandleSignalElement.textContent =
-                "BULLISH";
-
-        } else {
-
-            vCandleSignalElement.textContent =
-                "BEARISH";
-        }
-    }
-}
-
-
-// ------------------------------------------
-// V SLOPE
-// ------------------------------------------
-
-function updateVSlope() {
-
-    const data =
-        getDisplayCandles();
-
-    if (
-        typeof calculateVSlope !== "function" ||
-        data.length === 0
-    ) {
-        return;
-    }
-
-    const result =
-        calculateVSlope(
-            data,
-            SETTINGS.vSlopeSmooth,
-            SETTINGS.vSlopeAfter,
-            SETTINGS.vSlopeEMA,
-            SETTINGS.vSlopeNeutral
-        );
-
-    if (
-        !result ||
-        result.length === 0
-    ) {
-        return;
-    }
-
-    const latest =
-        result[result.length - 1];
-
-    if (!latest) {
-        return;
-    }
-
-
-    // VALUE
-
-    if (vSlopeValueElement) {
-
-        vSlopeValueElement.textContent =
-            latest.value != null
-                ? latest.value.toFixed(4)
-                : "--";
-    }
-
-
-    // SIGNAL
-
-    if (vSlopeSignalElement) {
-
-        vSlopeSignalElement.textContent =
-            latest.state;
-    }
-}
-
-
-// ------------------------------------------
-// VLOT
-// ------------------------------------------
-
-function updateVLOT() {
-
-    const data =
-        getDisplayCandles();
-
-    if (
-        typeof calculateVLOT !== "function" ||
-        data.length === 0
-    ) {
-        return;
-    }
-
-    const result =
-        calculateVLOT(
-            data,
-            SETTINGS.vLotATRLength,
-            SETTINGS.vLotATRMultiplier,
-            SETTINGS.vLotRisk,
-            SETTINGS.vLotMode,
-            SETTINGS.vLotManualSLD
-        );
-
-    if (!result) {
-        return;
-    }
-
-
-    // VALUE
-    // Shows:
-    // SLD / LOT
-
-    if (vlotValueElement) {
-
-        if (
-            result.slDistance != null &&
-            result.lotSize != null
-        ) {
-
-            vlotValueElement.textContent =
-                "$" +
-                result.slDistance.toFixed(2) +
-                " / " +
-                result.lotSize.toFixed(2);
-
-        } else {
-
-            vlotValueElement.textContent =
-                "--";
-        }
-    }
-
-
-    // SIGNAL
-
-    if (vlotSignalElement) {
-
-        if (
-            result.slDistance != null &&
-            result.lotSize != null
-        ) {
-
-            vlotSignalElement.textContent =
-                "READY";
-
-        } else {
-
-            vlotSignalElement.textContent =
-                "WAIT";
-        }
-    }
-}
-
-
-// ------------------------------------------
-// UPDATE TERMINAL
-// ------------------------------------------
-
-function updateTerminal() {
-
-    const displayCandles =
-        getDisplayCandles();
-
-    if (displayCandles.length === 0) {
-        return;
-    }
-
-    const latest =
-        displayCandles[
-            displayCandles.length - 1
-        ];
-
-
-    // PRICE
-
-    if (priceElement) {
-
-        priceElement.textContent =
-            latest.close.toFixed(2);
-    }
-
-
-    // INDICATORS
-
-    updateVCandle();
-
-    updateVSlope();
-
-    updateVLOT();
-
-
-    // CHART
-
-    drawChart();
-}
-
-
-// ------------------------------------------
-// SIMULATED MARKET
-// ------------------------------------------
-
-function generatePrice() {
-
-    const movement =
-        (Math.random() - 0.5) * 18;
-
-    simulatedPrice += movement;
-
-
-    // Keep simulation
-    // around NIFTY-like range
-
-    if (simulatedPrice < 24800) {
-
-        simulatedPrice =
-            24800;
-    }
-
-    if (simulatedPrice > 25400) {
-
-        simulatedPrice =
-            25400;
-    }
-
-    return simulatedPrice;
-}
-
-
-// ------------------------------------------
-// SIMULATION TICK
-// ------------------------------------------
-
-function simulationTick() {
-
-    // Advance simulated time
-    // 10 seconds per tick
-
-    simulatedTime =
-        new Date(
-            simulatedTime.getTime() +
-            10000
-        );
-
-
-    const price =
-        generatePrice();
-
-
-    processTick(
-        price,
-        simulatedTime.getTime()
-    );
-
-
-    updateTerminal();
-}
-
-
-// ------------------------------------------
+// ==========================================
 // CANVAS RESIZE
-// ------------------------------------------
+// ==========================================
 
-function resizeCanvas() {
-
-    if (!canvas || !ctx) {
-        return;
-    }
+function resizeCanvas(canvas, ctx) {
 
     const rect =
         canvas.getBoundingClientRect();
 
+    const dpr =
+        window.devicePixelRatio || 1;
+
     canvas.width =
-        rect.width *
-        window.devicePixelRatio;
+        rect.width * dpr;
 
     canvas.height =
-        rect.height *
-        window.devicePixelRatio;
-
+        rect.height * dpr;
 
     ctx.setTransform(
-        window.devicePixelRatio,
+        dpr,
         0,
         0,
-        window.devicePixelRatio,
+        dpr,
         0,
         0
     );
 
+}
 
-    drawChart();
+function resizeAll() {
+
+    resizeCanvas(
+        chartCanvas,
+        chartCtx
+    );
+
+    resizeCanvas(
+        slopeCanvas,
+        slopeCtx
+    );
+
+    drawCharts();
+
+}
+
+window.addEventListener(
+    "resize",
+    resizeAll
+);
+
+
+// ==========================================
+// SIMULATED CANDLE
+// ==========================================
+
+function createSimulatedCandle() {
+
+    const open =
+        currentPrice;
+
+    const movement =
+        (Math.random() - 0.5) * 35;
+
+    const close =
+        open + movement;
+
+    const high =
+        Math.max(open, close)
+        + Math.random() * 12;
+
+    const low =
+        Math.min(open, close)
+        - Math.random() * 12;
+
+    currentPrice =
+        close;
+
+    const candle = {
+
+        time: new Date(simulatedTime),
+
+        open: open,
+
+        high: high,
+
+        low: low,
+
+        close: close
+
+    };
+
+    simulatedTime +=
+        SETTINGS.timeframeMinutes *
+        60 *
+        1000;
+
+    return candle;
+
 }
 
 
-// ------------------------------------------
-// DRAW CHART
-// ------------------------------------------
+// ==========================================
+// INITIAL HISTORY
+// ==========================================
 
-function drawChart() {
+function generateInitialHistory() {
 
-    if (!canvas || !ctx) {
+    candles = [];
+
+    currentPrice = 25150;
+
+    simulatedTime =
+        Date.now() -
+        (150 *
+        SETTINGS.timeframeMinutes *
+        60 *
+        1000);
+
+    for (
+        let i = 0;
+        i < 150;
+        i++
+    ) {
+
+        candles.push(
+            createSimulatedCandle()
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// UI UPDATE
+// ==========================================
+
+function updateMarketUI() {
+
+    const last =
+        candles[candles.length - 1];
+
+    if (!last) {
         return;
     }
 
+    document.getElementById(
+        "price"
+    ).textContent =
+        last.close.toFixed(2);
+
+    document.getElementById(
+        "chartSymbol"
+    ).textContent =
+        SETTINGS.symbol;
+
+    document.getElementById(
+        "status"
+    ).textContent =
+        "RUNNING";
+
+    document.getElementById(
+        "lastTime"
+    ).textContent =
+        formatTime(last.time);
+
+}
+
+
+// ==========================================
+// TIME FORMAT
+// ==========================================
+
+function formatTime(date) {
+
+    return date.toLocaleTimeString(
+        "en-IN",
+        {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+        }
+    );
+
+}
+
+
+// ==========================================
+// V CANDLE
+// ==========================================
+
+function updateVCandle() {
+
+    const values =
+        calculateVCandle(
+            candles,
+            SETTINGS.vCandle.smoothLen,
+            SETTINGS.vCandle.afterLen,
+            SETTINGS.vCandle.dojiThreshold
+        );
+
+    if (!values.length) {
+        return null;
+    }
+
+    const last =
+        values[values.length - 1];
+
+    const signal =
+        last.isDoji
+            ? "DOJI"
+            : last.close >= last.open
+                ? "BULLISH"
+                : "BEARISH";
+
+    document.getElementById(
+        "vCandleSignal"
+    ).textContent =
+        signal;
+
+    document.getElementById(
+        "vCandleValue"
+    ).textContent =
+        last.close.toFixed(2);
+
+    return values;
+
+}
+
+
+// ==========================================
+// V SLOPE
+// ==========================================
+
+function updateVSlope() {
+
+    const values =
+        calculateVSlope(
+            candles,
+            SETTINGS.vSlope.smoothLen,
+            SETTINGS.vSlope.afterLen,
+            SETTINGS.vSlope.slopeEMA,
+            SETTINGS.vSlope.neutralZone
+        );
+
+    if (!values.length) {
+        return null;
+    }
+
+    const last =
+        values[values.length - 1];
+
+    const value =
+        last.value == null
+            ? 0
+            : last.value;
+
+    const signal =
+        last.state;
+
+    document.getElementById(
+        "vSlopeValue"
+    ).textContent =
+        value.toFixed(4);
+
+    document.getElementById(
+        "vSlopeSignal"
+    ).textContent =
+        signal;
+
+    document.getElementById(
+        "vSlopeCardValue"
+    ).textContent =
+        value.toFixed(4);
+
+    document.getElementById(
+        "vSlopeSignalCard"
+    ).textContent =
+        signal;
+
+    return values;
+
+}
+
+
+// ==========================================
+// VLOT
+// ==========================================
+
+function updateVLOT() {
+
+    const result =
+        calculateVLOT(
+            candles,
+            SETTINGS.vlot.atrLength,
+            SETTINGS.vlot.atrMultiplier,
+            SETTINGS.vlot.risk,
+            SETTINGS.vlot.sldMode,
+            SETTINGS.vlot.manualSLD
+        );
+
+    if (!result) {
+        return null;
+    }
+
+    if (result.atr == null) {
+        return result;
+    }
+
+    document.getElementById(
+        "vlotRisk"
+    ).textContent =
+        "$" +
+        result.risk.toFixed(2);
+
+    document.getElementById(
+        "vlotATR"
+    ).textContent =
+        result.atr.toFixed(2);
+
+    document.getElementById(
+        "vlotSLD"
+    ).textContent =
+        "$" +
+        result.slDistance.toFixed(2);
+
+    document.getElementById(
+        "vlotLOT"
+    ).textContent =
+        result.lotSize.toFixed(2);
+
+    document.getElementById(
+        "vlotValue"
+    ).textContent =
+        "$" +
+        result.slDistance.toFixed(2)
+        +
+        " / "
+        +
+        result.lotSize.toFixed(2);
+
+    document.getElementById(
+        "vlotSignal"
+    ).textContent =
+        "READY";
+
+    document.getElementById(
+        "vlotSignalCard"
+    ).textContent =
+        "READY";
+
+    return result;
+
+}
+
+
+// ==========================================
+// DRAW MAIN CHART
+// ==========================================
+
+function drawMainChart(
+    vcandles
+) {
+
+    const rect =
+        chartCanvas.getBoundingClientRect();
+
     const width =
-        canvas.clientWidth;
+        rect.width;
 
     const height =
-        canvas.clientHeight;
+        rect.height;
 
-
-    ctx.clearRect(
+    chartCtx.clearRect(
         0,
         0,
         width,
@@ -579,106 +448,201 @@ function drawChart() {
     );
 
 
-    const data =
-        getDisplayCandles();
+    // BACKGROUND
 
-    if (data.length === 0) {
-        return;
-    }
+    chartCtx.fillStyle =
+        "#101318";
+
+    chartCtx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
 
 
-    // Last 60 candles
+    const visibleCount =
+        Math.min(70, candles.length);
 
-    const visible =
-        data.slice(-60);
+    const visibleCandles =
+        candles.slice(
+            candles.length - visibleCount
+        );
 
 
-    let minPrice =
+    const visibleV =
+        vcandles
+            ? vcandles.slice(
+                vcandles.length - visibleCount
+            )
+            : [];
+
+
+    let min =
         Infinity;
 
-    let maxPrice =
+    let max =
         -Infinity;
 
 
-    visible.forEach(candle => {
+    visibleCandles.forEach(c => {
 
-        minPrice =
+        min =
             Math.min(
-                minPrice,
-                candle.low
+                min,
+                c.low
             );
 
-        maxPrice =
+        max =
             Math.max(
-                maxPrice,
-                candle.high
+                max,
+                c.high
             );
+
     });
 
 
-    const range =
-        maxPrice - minPrice || 1;
+    visibleV.forEach(c => {
+
+        if (c) {
+
+            min =
+                Math.min(
+                    min,
+                    c.low
+                );
+
+            max =
+                Math.max(
+                    max,
+                    c.high
+                );
+
+        }
+
+    });
 
 
-    const padding = 20;
+    const padding =
+        (max - min) * 0.12;
 
+    min -= padding;
+    max += padding;
+
+
+    const chartLeft = 10;
+    const chartRight = 65;
+    const chartTop = 18;
+    const chartBottom = 28;
+
+    const chartWidth =
+        width -
+        chartLeft -
+        chartRight;
 
     const chartHeight =
         height -
-        padding * 2;
+        chartTop -
+        chartBottom;
 
 
-    const candleSlot =
-        (width - padding * 2) /
-        visible.length;
+    // GRID
 
+    chartCtx.strokeStyle =
+        "#22262d";
+
+    chartCtx.lineWidth = 1;
+
+
+    for (
+        let i = 0;
+        i <= 6;
+        i++
+    ) {
+
+        const y =
+            chartTop +
+            (chartHeight / 6) * i;
+
+        chartCtx.beginPath();
+
+        chartCtx.moveTo(
+            chartLeft,
+            y
+        );
+
+        chartCtx.lineTo(
+            chartLeft + chartWidth,
+            y
+        );
+
+        chartCtx.stroke();
+
+
+        const price =
+            max -
+            ((max - min) *
+            i / 6);
+
+        chartCtx.fillStyle =
+            "#727985";
+
+        chartCtx.font =
+            "10px Arial";
+
+        chartCtx.fillText(
+            price.toFixed(2),
+            width - 58,
+            y + 3
+        );
+
+    }
+
+
+    // CANDLE WIDTH
+
+    const step =
+        chartWidth /
+        visibleCount;
 
     const candleWidth =
         Math.max(
             3,
-            candleSlot * 0.65
+            step * 0.55
         );
 
 
-    // --------------------------------------
-    // NORMAL CANDLES
-    // --------------------------------------
+    function priceToY(price) {
 
-    visible.forEach(
+        return chartTop +
+            ((max - price) /
+            (max - min)) *
+            chartHeight;
+
+    }
+
+
+    // NORMAL OHLC CANDLES
+
+    visibleCandles.forEach(
         (candle, index) => {
 
             const x =
-                padding +
-                index * candleSlot +
-                candleSlot / 2;
-
+                chartLeft +
+                step * index +
+                step / 2;
 
             const openY =
-                padding +
-                (maxPrice - candle.open) /
-                range *
-                chartHeight;
-
+                priceToY(candle.open);
 
             const closeY =
-                padding +
-                (maxPrice - candle.close) /
-                range *
-                chartHeight;
-
+                priceToY(candle.close);
 
             const highY =
-                padding +
-                (maxPrice - candle.high) /
-                range *
-                chartHeight;
-
+                priceToY(candle.high);
 
             const lowY =
-                padding +
-                (maxPrice - candle.low) /
-                range *
-                chartHeight;
+                priceToY(candle.low);
 
 
             const bullish =
@@ -686,28 +650,32 @@ function drawChart() {
                 candle.open;
 
 
+            chartCtx.strokeStyle =
+                bullish
+                    ? "#43c982"
+                    : "#e05b63";
+
+            chartCtx.fillStyle =
+                bullish
+                    ? "#43c982"
+                    : "#e05b63";
+
+
             // WICK
 
-            ctx.beginPath();
+            chartCtx.beginPath();
 
-            ctx.moveTo(
+            chartCtx.moveTo(
                 x,
                 highY
             );
 
-            ctx.lineTo(
+            chartCtx.lineTo(
                 x,
                 lowY
             );
 
-            ctx.strokeStyle =
-                bullish
-                    ? "#22c55e"
-                    : "#ef4444";
-
-            ctx.lineWidth = 1;
-
-            ctx.stroke();
+            chartCtx.stroke();
 
 
             // BODY
@@ -718,250 +686,655 @@ function drawChart() {
                     closeY
                 );
 
-
-            const bodyBottom =
-                Math.max(
-                    openY,
-                    closeY
-                );
-
-
             const bodyHeight =
                 Math.max(
                     1,
-                    bodyBottom -
-                    bodyTop
+                    Math.abs(
+                        closeY -
+                        openY
+                    )
                 );
 
-
-            ctx.fillStyle =
-                bullish
-                    ? "#22c55e"
-                    : "#ef4444";
-
-
-            ctx.fillRect(
+            chartCtx.fillRect(
                 x -
                 candleWidth / 2,
-
                 bodyTop,
-
                 candleWidth,
-
                 bodyHeight
             );
+
         }
     );
 
 
-    // --------------------------------------
     // V CANDLE OVERLAY
-    // --------------------------------------
 
-    if (
-        typeof calculateVCandle ===
-        "function"
-    ) {
+    visibleV.forEach(
+        (candle, index) => {
 
-        const vData =
-            calculateVCandle(
-                data,
-                SETTINGS.vCandleSmooth,
-                SETTINGS.vCandleAfter,
-                SETTINGS.vCandleDoji
+            if (!candle) {
+                return;
+            }
+
+            const x =
+                chartLeft +
+                step * index +
+                step / 2;
+
+
+            const openY =
+                priceToY(candle.open);
+
+            const closeY =
+                priceToY(candle.close);
+
+            const highY =
+                priceToY(candle.high);
+
+            const lowY =
+                priceToY(candle.low);
+
+
+            let color;
+
+            if (candle.isDoji) {
+
+                color =
+                    "#8d939c";
+
+            } else if (
+                candle.close >=
+                candle.open
+            ) {
+
+                color =
+                    "#9be7b7";
+
+            } else {
+
+                color =
+                    "#ee9298";
+
+            }
+
+
+            chartCtx.strokeStyle =
+                color;
+
+            chartCtx.fillStyle =
+                color;
+
+
+            // V WICK
+
+            chartCtx.beginPath();
+
+            chartCtx.moveTo(
+                x,
+                highY
+            );
+
+            chartCtx.lineTo(
+                x,
+                lowY
+            );
+
+            chartCtx.stroke();
+
+
+            // V BODY
+
+            const bodyTop =
+                Math.min(
+                    openY,
+                    closeY
+                );
+
+            const bodyHeight =
+                Math.max(
+                    2,
+                    Math.abs(
+                        closeY -
+                        openY
+                    )
+                );
+
+
+            chartCtx.globalAlpha =
+                0.62;
+
+
+            chartCtx.fillRect(
+                x -
+                candleWidth * 0.32,
+                bodyTop,
+                candleWidth * 0.64,
+                bodyHeight
             );
 
 
-        const visibleV =
-            vData.slice(-60);
+            chartCtx.globalAlpha =
+                1;
+
+        }
+    );
 
 
-        visibleV.forEach(
-            (v, index) => {
+    // CURRENT PRICE LINE
 
-                if (
-                    v.open == null ||
-                    v.high == null ||
-                    v.low == null ||
-                    v.close == null
-                ) {
-                    return;
-                }
+    const last =
+        candles[candles.length - 1];
 
+    if (last) {
 
-                const x =
-                    padding +
-                    index * candleSlot +
-                    candleSlot / 2;
+        const y =
+            priceToY(last.close);
 
+        chartCtx.strokeStyle =
+            "#707782";
 
-                const openY =
-                    padding +
-                    (maxPrice - v.open) /
-                    range *
-                    chartHeight;
-
-
-                const closeY =
-                    padding +
-                    (maxPrice - v.close) /
-                    range *
-                    chartHeight;
-
-
-                const highY =
-                    padding +
-                    (maxPrice - v.high) /
-                    range *
-                    chartHeight;
-
-
-                const lowY =
-                    padding +
-                    (maxPrice - v.low) /
-                    range *
-                    chartHeight;
-
-
-                // V CANDLE COLOR
-
-                let color;
-
-
-                if (v.isDoji) {
-
-                    color =
-                        "#888888";
-
-                } else if (
-                    v.color ===
-                    "bullish"
-                ) {
-
-                    color =
-                        "#86efac";
-
-                } else {
-
-                    color =
-                        "#fca5a5";
-                }
-
-
-                // V WICK
-
-                ctx.beginPath();
-
-                ctx.moveTo(
-                    x,
-                    highY
-                );
-
-                ctx.lineTo(
-                    x,
-                    lowY
-                );
-
-                ctx.strokeStyle =
-                    color;
-
-                ctx.lineWidth = 2;
-
-                ctx.stroke();
-
-
-                // V BODY
-
-                const bodyTop =
-                    Math.min(
-                        openY,
-                        closeY
-                    );
-
-
-                const bodyBottom =
-                    Math.max(
-                        openY,
-                        closeY
-                    );
-
-
-                const bodyHeight =
-                    Math.max(
-                        2,
-                        bodyBottom -
-                        bodyTop
-                    );
-
-
-                ctx.fillStyle =
-                    color;
-
-
-                ctx.fillRect(
-                    x -
-                    candleWidth / 2,
-
-                    bodyTop,
-
-                    candleWidth,
-
-                    bodyHeight
-                );
-            }
+        chartCtx.setLineDash(
+            [5, 4]
         );
+
+        chartCtx.beginPath();
+
+        chartCtx.moveTo(
+            chartLeft,
+            y
+        );
+
+        chartCtx.lineTo(
+            chartLeft + chartWidth,
+            y
+        );
+
+        chartCtx.stroke();
+
+        chartCtx.setLineDash([]);
+
+
+        // PRICE LABEL
+
+        chartCtx.fillStyle =
+            "#20252c";
+
+        chartCtx.fillRect(
+            width - 62,
+            y - 9,
+            60,
+            18
+        );
+
+        chartCtx.fillStyle =
+            "#e5e8ed";
+
+        chartCtx.font =
+            "10px Arial";
+
+        chartCtx.fillText(
+            last.close.toFixed(2),
+            width - 58,
+            y + 4
+        );
+
     }
+
+
+    // TIME LABELS
+
+    chartCtx.fillStyle =
+        "#6f7681";
+
+    chartCtx.font =
+        "9px Arial";
+
+    for (
+        let i = 0;
+        i < visibleCount;
+        i += 10
+    ) {
+
+        const candle =
+            visibleCandles[i];
+
+        if (!candle) {
+            continue;
+        }
+
+        const x =
+            chartLeft +
+            step * i +
+            step / 2;
+
+        chartCtx.fillText(
+            formatTime(candle.time),
+            x - 17,
+            height - 8
+        );
+
+    }
+
 }
 
 
-// ------------------------------------------
-// CONNECTION STATUS
-// ------------------------------------------
+// ==========================================
+// DRAW V SLOPE
+// ==========================================
 
-if (connectionElement) {
+function drawSlopeChart(
+    slopeValues
+) {
 
-    connectionElement.textContent =
-        "SIMULATION";
+    const rect =
+        slopeCanvas.getBoundingClientRect();
+
+    const width =
+        rect.width;
+
+    const height =
+        rect.height;
+
+    slopeCtx.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    slopeCtx.fillStyle =
+        "#101318";
+
+    slopeCtx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    if (
+        !slopeValues ||
+        slopeValues.length === 0
+    ) {
+        return;
+    }
+
+
+    const visibleCount =
+        Math.min(
+            70,
+            slopeValues.length
+        );
+
+    const values =
+        slopeValues.slice(
+            slopeValues.length -
+            visibleCount
+        );
+
+
+    const left = 10;
+    const right = 65;
+    const top = 12;
+    const bottom = 12;
+
+    const plotWidth =
+        width -
+        left -
+        right;
+
+    const plotHeight =
+        height -
+        top -
+        bottom;
+
+
+    const neutral =
+        SETTINGS.vSlope.neutralZone;
+
+
+    let min =
+        -0.10;
+
+    let max =
+        0.10;
+
+
+    values.forEach(v => {
+
+        if (
+            v.value != null
+        ) {
+
+            min =
+                Math.min(
+                    min,
+                    v.value
+                );
+
+            max =
+                Math.max(
+                    max,
+                    v.value
+                );
+
+        }
+
+    });
+
+
+    const range =
+        Math.max(
+            0.10,
+            max - min
+        );
+
+    const center =
+        (max + min) / 2;
+
+    min =
+        center -
+        range * 0.65;
+
+    max =
+        center +
+        range * 0.65;
+
+
+    function valueToY(value) {
+
+        return top +
+            ((max - value) /
+            (max - min)) *
+            plotHeight;
+
+    }
+
+
+    // GRID / ZONES
+
+    const levels = [
+        {
+            value: neutral,
+            label: "+0.03"
+        },
+        {
+            value: 0,
+            label: "0"
+        },
+        {
+            value: -neutral,
+            label: "-0.03"
+        }
+    ];
+
+
+    levels.forEach(
+        level => {
+
+            const y =
+                valueToY(
+                    level.value
+                );
+
+
+            slopeCtx.strokeStyle =
+                "#30353d";
+
+            slopeCtx.setLineDash(
+                [5, 4]
+            );
+
+            slopeCtx.beginPath();
+
+            slopeCtx.moveTo(
+                left,
+                y
+            );
+
+            slopeCtx.lineTo(
+                left + plotWidth,
+                y
+            );
+
+            slopeCtx.stroke();
+
+            slopeCtx.setLineDash([]);
+
+
+            slopeCtx.fillStyle =
+                "#737a85";
+
+            slopeCtx.font =
+                "9px Arial";
+
+            slopeCtx.fillText(
+                level.label,
+                width - 48,
+                y + 3
+            );
+
+        }
+    );
+
+
+    // SLOPE LINE
+
+    const step =
+        plotWidth /
+        Math.max(
+            1,
+            visibleCount - 1
+        );
+
+
+    for (
+        let i = 1;
+        i < values.length;
+        i++
+    ) {
+
+        const previous =
+            values[i - 1];
+
+        const current =
+            values[i];
+
+
+        if (
+            previous.value == null ||
+            current.value == null
+        ) {
+            continue;
+        }
+
+
+        const x1 =
+            left +
+            step * (i - 1);
+
+        const x2 =
+            left +
+            step * i;
+
+
+        const y1 =
+            valueToY(
+                previous.value
+            );
+
+        const y2 =
+            valueToY(
+                current.value
+            );
+
+
+        let color =
+            "#6e8ee8";
+
+
+        if (
+            current.state ===
+            "BULLISH"
+        ) {
+
+            color =
+                "#43c982";
+
+        } else if (
+            current.state ===
+            "BEARISH"
+        ) {
+
+            color =
+                "#e05b63";
+
+        } else {
+
+            color =
+                "#6e8ee8";
+
+        }
+
+
+        slopeCtx.strokeStyle =
+            color;
+
+        slopeCtx.lineWidth = 2;
+
+
+        slopeCtx.beginPath();
+
+        slopeCtx.moveTo(
+            x1,
+            y1
+        );
+
+        slopeCtx.lineTo(
+            x2,
+            y2
+        );
+
+        slopeCtx.stroke();
+
+    }
+
+
+    slopeCtx.lineWidth = 1;
+
 }
 
 
-// ------------------------------------------
-// SYMBOL
-// ------------------------------------------
+// ==========================================
+// DRAW BOTH
+// ==========================================
 
-if (symbolElement) {
+function drawCharts() {
 
-    symbolElement.textContent =
-        SETTINGS.symbol;
+    const vcandles =
+        calculateVCandle(
+            candles,
+            SETTINGS.vCandle.smoothLen,
+            SETTINGS.vCandle.afterLen,
+            SETTINGS.vCandle.dojiThreshold
+        );
+
+
+    const slope =
+        calculateVSlope(
+            candles,
+            SETTINGS.vSlope.smoothLen,
+            SETTINGS.vSlope.afterLen,
+            SETTINGS.vSlope.slopeEMA,
+            SETTINGS.vSlope.neutralZone
+        );
+
+
+    drawMainChart(
+        vcandles
+    );
+
+    drawSlopeChart(
+        slope
+    );
+
 }
 
 
-// ------------------------------------------
-// WINDOW RESIZE
-// ------------------------------------------
+// ==========================================
+// UPDATE EVERYTHING
+// ==========================================
 
-window.addEventListener(
-    "resize",
-    resizeCanvas
+function updateTerminal() {
+
+    updateMarketUI();
+
+    updateVCandle();
+
+    updateVSlope();
+
+    updateVLOT();
+
+    drawCharts();
+
+}
+
+
+// ==========================================
+// NEW SIMULATED CANDLE
+// ==========================================
+
+function addNewCandle() {
+
+    candles.push(
+        createSimulatedCandle()
+    );
+
+
+    if (
+        candles.length > 300
+    ) {
+
+        candles.shift();
+
+    }
+
+
+    updateTerminal();
+
+}
+
+
+// ==========================================
+// START
+// ==========================================
+
+generateInitialHistory();
+
+
+// Give browser time to calculate dimensions.
+
+setTimeout(
+    () => {
+
+        resizeAll();
+
+        updateTerminal();
+
+    },
+    100
 );
 
 
-// ------------------------------------------
-// INITIAL CANVAS
-// ------------------------------------------
-
-resizeCanvas();
-
-
-// ------------------------------------------
-// START SIMULATION
-// ------------------------------------------
+// Simulation tick.
 
 setInterval(
-    simulationTick,
-    500
+    () => {
+
+        addNewCandle();
+
+    },
+    1500
 );
-
-
-// First tick
-simulationTick();
