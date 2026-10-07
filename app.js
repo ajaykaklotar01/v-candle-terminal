@@ -1472,3 +1472,96 @@ function startTerminal() {
 /* =========================================================
    SLOPE UI ONLY
 ========================================================= */
+
+function updateSlopeValuesOnly() {
+
+    const slope =
+        calculateVSlope(
+            candles,
+            60,
+            60,
+            5,
+            0.03
+        );
+
+
+    if (!slope.length) {
+        return;
+    }
+
+
+    const last =
+        slope[slope.length - 1];
+
+
+    if (
+        !last ||
+        last.value == null
+    ) {
+        return;
+    }
+
+
+    const value =
+        last.value;
+
+
+    vSlopeValueEl.textContent =
+        value.toFixed(4);
+
+    vSlopeCardValueEl.textContent =
+        value.toFixed(4);
+
+
+    let state =
+        "NEUTRAL";
+
+
+    if (value > 0.03) {
+
+        state =
+            "BULLISH";
+
+    }
+    else if (value < -0.03) {
+
+        state =
+            "BEARISH";
+
+    }
+
+
+    vSlopeSignalEl.textContent =
+        state;
+
+    vSlopeSignalCardEl.textContent =
+        state;
+
+}
+
+
+/* =========================================================
+   SYMBOL
+========================================================= */
+
+document
+    .getElementById("symbol")
+    .addEventListener(
+        "change",
+        function() {
+
+            SETTINGS.symbol =
+                this.value;
+
+            chartSymbolEl.textContent =
+                SETTINGS.symbol;
+
+        }
+    );
+
+
+/* =========================================================
+   START
+========================================================= */
+
+startTerminal();
