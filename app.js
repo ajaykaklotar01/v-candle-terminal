@@ -1181,6 +1181,7 @@ function updateSlopeChart() {
 }
 
 
+
 /* =========================================================
    UPDATE VLOT
 ========================================================= */
@@ -1223,4 +1224,174 @@ function updateVLOT() {
         result.lotSize.toFixed(2);
 
     vlotValue.textContent =
-   
+        result.lotSize.toFixed(2);
+
+    vlotSignal.textContent =
+        "READY";
+
+    vlotSignalCard.textContent =
+        "READY";
+
+}
+
+
+/* =========================================================
+   UPDATE V CANDLE STATUS
+========================================================= */
+
+function updateVCandleStatus() {
+
+    const result =
+        calculateVCandle(
+            candles,
+            45,
+            45,
+            0.03
+        );
+
+
+    if (!result.length) return;
+
+
+    const last =
+        result[result.length - 1];
+
+
+    if (!last) return;
+
+
+    const state =
+        last.close >= last.open
+            ? "BULLISH"
+            : "BEARISH";
+
+
+    vCandleSignalEl.textContent =
+        state;
+
+
+    vCandleValueEl.textContent =
+        last.close.toFixed(2);
+
+}
+
+
+/* =========================================================
+   UPDATE EVERYTHING
+========================================================= */
+
+function updateTerminal() {
+
+    if (!candles.length) return;
+
+
+    lastPrice =
+        candles[candles.length - 1]
+            .close;
+
+
+    updateMainChart();
+
+    updateSlopeChart();
+
+    updateVLOT();
+
+    updateVCandleStatus();
+
+
+    statusEl.textContent =
+        "RUNNING";
+
+}
+
+
+/* =========================================================
+   NEW SIMULATION CANDLE
+========================================================= */
+
+function addNewCandle() {
+
+    const next =
+        createNextCandle();
+
+
+    candles.push(next);
+
+
+    /*
+        Limit history
+    */
+
+    if (
+        candles.length >
+        SETTINGS.maxCandles
+    ) {
+
+        candles.shift();
+
+    }
+
+
+    lastPrice =
+        next.close;
+
+
+    updateTerminal();
+
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+function startTerminal() {
+
+    candles =
+        createInitialCandles();
+
+
+    chartSymbolEl.textContent =
+        SETTINGS.symbol;
+
+
+    createCharts();
+
+
+    updateTerminal();
+
+
+    simulationTimer =
+        setInterval(
+            addNewCandle,
+            SETTINGS.simulationInterval
+        );
+
+}
+
+
+/* =========================================================
+   SYMBOL CHANGE
+========================================================= */
+
+document
+    .getElementById("symbol")
+    .addEventListener(
+        "change",
+        function () {
+
+            SETTINGS.symbol =
+                this.value;
+
+            chartSymbolEl.textContent =
+                SETTINGS.symbol;
+
+        }
+    );
+
+
+/* =========================================================
+   START TERMINAL
+========================================================= */
+
+startTerminal()
