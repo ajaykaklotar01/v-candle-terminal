@@ -1180,4 +1180,98 @@ function updateSlopeChart() {
 
 /* =========================================================
    VLOT
-==================================================
+========================================================= */
+
+function updateVLOT() {
+
+    const result =
+        calculateVLOT(
+            candles,
+            14,
+            1.3,
+            5,
+            "AUTO ATR",
+            10
+        );
+
+
+    if (!result) {
+        return;
+    }
+
+
+    if (
+        result.atr == null ||
+        result.slDistance == null ||
+        result.lotSize == null
+    ) {
+        return;
+    }
+
+
+    vlotATR.textContent =
+        result.atr.toFixed(2);
+
+    vlotSLD.textContent =
+        "$" +
+        result.slDistance.toFixed(2);
+
+    vlotLOT.textContent =
+        result.lotSize.toFixed(2);
+
+    vlotValue.textContent =
+        result.lotSize.toFixed(2);
+
+
+    vlotSignal.textContent =
+        "READY";
+
+    vlotSignalCard.textContent =
+        "READY";
+
+}
+
+
+/* =========================================================
+   V CANDLE STATUS
+========================================================= */
+
+function updateVCandleStatus() {
+
+    const result =
+        calculateVCandle(
+            candles,
+            45,
+            45,
+            0.03
+        );
+
+
+    if (!result || !result.length) {
+        return;
+    }
+
+
+    const last =
+        result[result.length - 1];
+
+
+    if (!last) {
+        return;
+    }
+
+
+    const state =
+        last.close >= last.open
+            ? "BULLISH"
+            : "BEARISH";
+
+
+    vCandleSignalEl.textContent =
+        state;
+
+
+    vCandleValueEl.textContent =
+        last.close.toFixed(2);
+
+   }
