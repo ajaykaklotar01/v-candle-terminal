@@ -1,6 +1,6 @@
 /* =========================================================
    V CANDLE TERMINAL
-   INTERACTIVE CHART ENGINE
+   Trading-style chart engine
 ========================================================= */
 
 
@@ -9,15 +9,21 @@
 ========================================================= */
 
 const SETTINGS = {
+
     symbol: "NIFTY 50",
+
     timeframeMinutes: 3,
 
     initialCandles: 250,
+
     maxCandles: 1000,
 
     simulationInterval: 1500,
+
     startingPrice: 25100,
+
     candleVolatility: 18
+
 };
 
 
@@ -26,25 +32,45 @@ const SETTINGS = {
 ========================================================= */
 
 let candles = [];
+
 let lastPrice = SETTINGS.startingPrice;
 
+let simulationTimer = null;
+
+
+/* =========================================================
+   LIGHTWEIGHT CHART REFERENCES
+========================================================= */
+
 let mainChart = null;
+
 let slopeChart = null;
 
 let priceSeries = null;
+
 let vCandleSeries = null;
+
 let slopeSeries = null;
 
-let currentPriceLine = null;
+let slopeBullLine = null;
+
+let slopeBearLine = null;
+
+let slopeZeroLine = null;
 
 
 /* =========================================================
    DOM
 ========================================================= */
 
-const priceEl = document.getElementById("price");
-const statusEl = document.getElementById("status");
-const lastTimeEl = document.getElementById("lastTime");
+const priceEl =
+    document.getElementById("price");
+
+const statusEl =
+    document.getElementById("status");
+
+const lastTimeEl =
+    document.getElementById("lastTime");
 
 const chartSymbolEl =
     document.getElementById("chartSymbol");
@@ -103,20 +129,26 @@ const ohlcClose =
 ========================================================= */
 
 function roundPrice(value) {
+
     return Number(value.toFixed(2));
+
 }
 
 
 function unixSeconds(time) {
+
     return Math.floor(
         new Date(time).getTime() / 1000
     );
+
 }
 
 
 function formatTime(time) {
 
-    return new Date(time).toLocaleTimeString(
+    const d = new Date(time);
+
+    return d.toLocaleTimeString(
         [],
         {
             hour: "2-digit",
@@ -129,15 +161,14 @@ function formatTime(time) {
 
 
 /* =========================================================
-   SIMULATED DATA
+   SIMULATED CANDLES
 ========================================================= */
 
 function createInitialCandles() {
 
     const result = [];
 
-    let price =
-        SETTINGS.startingPrice;
+    let price = SETTINGS.startingPrice;
 
     const now = Date.now();
 
@@ -191,13 +222,13 @@ function createInitialCandles() {
 
             time: time.toISOString(),
 
-            open: open,
+            open,
 
-            high: high,
+            high,
 
-            low: low,
+            low,
 
-            close: close
+            close
 
         });
 
@@ -215,7 +246,7 @@ function createInitialCandles() {
 
 
 /* =========================================================
-   NEXT CANDLE
+   CREATE NEXT CANDLE
 ========================================================= */
 
 function createNextCandle() {
@@ -270,13 +301,13 @@ function createNextCandle() {
 
         time: time.toISOString(),
 
-        open: open,
+        open,
 
-        high: high,
+        high,
 
-        low: low,
+        low,
 
-        close: close
+        close
 
     };
 
@@ -284,80 +315,52 @@ function createNextCandle() {
 
 
 /* =========================================================
-   CHECK CHART LIBRARY
+   CHART CREATION
 ========================================================= */
 
-function checkChartLibrary() {
+function createCharts() {
 
-    if (
-        typeof LightweightCharts ===
-        "undefined"
-    ) {
-
-        console.error(
-            "Lightweight Charts library did not load."
-        );
-
-        statusEl.textContent =
-            "CHART LIBRARY ERROR";
-
-        return false;
-
-    }
-
-    return true;
-
-}
-
-
-/* =========================================================
-   CREATE MAIN CHART
-========================================================= */
-
-function createMainChart() {
-
-    const container =
+    const chartContainer =
         document.getElementById("chart");
 
 
+    const slopeContainer =
+        document.getElementById("slopeChart");
+
+
+    /*
+        MAIN PRICE CHART
+    */
+
     mainChart =
         LightweightCharts.createChart(
-            container,
+            chartContainer,
             {
 
-                width:
-                    container.clientWidth || 600,
-
-                height:
-                    container.clientHeight || 470,
-
+                autoSize: true,
 
                 layout: {
 
                     background: {
                         type:
                             LightweightCharts.ColorType.Solid,
-
-                        color:
-                            "#111318"
+                        color: "#111318"
                     },
 
-                    textColor:
-                        "#858b95",
+                    textColor: "#858b95",
 
-                    fontSize:
-                        11,
+                    fontSize: 11,
 
                     fontFamily:
                         "Inter, system-ui, sans-serif",
 
-                    attributionLogo:
-                        true
+                    attributionLogo: true
+
                 },
 
 
                 /*
-                    GRID OFF
+                    GRID DISABLED
                 */
 
                 grid: {
@@ -384,7 +387,7 @@ function createMainChart() {
 
                         width: 1,
 
-                        color: "#777d87",
+                        color: "#8a8f98",
 
                         style:
                             LightweightCharts.LineStyle.Dashed,
@@ -402,7 +405,7 @@ function createMainChart() {
 
                         width: 1,
 
-                        color: "#777d87",
+                        color: "#8a8f98",
 
                         style:
                             LightweightCharts.LineStyle.Dashed,
@@ -446,7 +449,7 @@ function createMainChart() {
 
                     rightOffset: 8,
 
-                    barSpacing: 7,
+                    barSpacing: 8,
 
                     minBarSpacing: 2
 
@@ -483,7 +486,7 @@ function createMainChart() {
 
 
     /*
-        REAL MARKET CANDLES
+        NORMAL MARKET CANDLES
     */
 
     priceSeries =
@@ -491,27 +494,22 @@ function createMainChart() {
             LightweightCharts.CandlestickSeries,
             {
 
-                upColor:
-                    "#36b37e",
+                upColor: "#36b37e",
 
-                downColor:
-                    "#e05d5d",
+                downColor: "#e05d5d",
 
-                borderVisible:
-                    false,
+                borderVisible: false,
 
-                wickUpColor:
-                    "#36b37e",
+                wickUpColor: "#36b37e",
 
-                wickDownColor:
-                    "#e05d5d"
+                wickDownColor: "#e05d5d"
 
             }
         );
 
 
     /*
-        V CANDLE
+        V CANDLE OVERLAY
     */
 
     vCandleSeries =
@@ -520,10 +518,10 @@ function createMainChart() {
             {
 
                 upColor:
-                    "rgba(54,179,126,0.22)",
+                    "rgba(54,179,126,0.28)",
 
                 downColor:
-                    "rgba(224,93,93,0.22)",
+                    "rgba(224,93,93,0.28)",
 
                 borderUpColor:
                     "#58c493",
@@ -542,147 +540,61 @@ function createMainChart() {
 
 
     /*
-        CROSSHAIR
+        CURRENT PRICE LINE
     */
 
-    mainChart.subscribeCrosshairMove(
-        function(param) {
+    priceSeries.createPriceLine({
 
-            if (
-                !param ||
-                !param.time ||
-                !param.seriesData
-            ) {
-                return;
-            }
+        price: lastPrice,
 
+        color: "#c9cdd4",
 
-            const candle =
-                param.seriesData.get(
-                    priceSeries
-                );
+        lineWidth: 1,
 
+        lineStyle:
+            LightweightCharts.LineStyle.Dashed,
 
-            if (!candle) {
-                return;
-            }
+        axisLabelVisible: true,
 
+        title: "PRICE"
 
-            ohlcOpen.textContent =
-                Number(candle.open).toFixed(2);
-
-            ohlcHigh.textContent =
-                Number(candle.high).toFixed(2);
-
-            ohlcLow.textContent =
-                Number(candle.low).toFixed(2);
-
-            ohlcClose.textContent =
-                Number(candle.close).toFixed(2);
-
-
-            if (
-                typeof param.time ===
-                "number"
-            ) {
-
-                const d =
-                    new Date(
-                        param.time * 1000
-                    );
-
-                lastTimeEl.textContent =
-                    d.toLocaleTimeString(
-                        [],
-                        {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false
-                        }
-                    );
-
-            }
-
-        }
-    );
+    });
 
 
     /*
-        MOBILE / DESKTOP RESIZE
+        SLOPE CHART
     */
-
-    const resizeObserver =
-        new ResizeObserver(
-            function() {
-
-                if (!mainChart) {
-                    return;
-                }
-
-                mainChart.resize(
-                    container.clientWidth,
-                    container.clientHeight
-                );
-
-            }
-        );
-
-
-    resizeObserver.observe(
-        container
-    );
-
-}
-
-
-/* =========================================================
-   CREATE SLOPE CHART
-========================================================= */
-
-function createSlopeChart() {
-
-    const container =
-        document.getElementById(
-            "slopeChart"
-        );
-
 
     slopeChart =
         LightweightCharts.createChart(
-            container,
+            slopeContainer,
             {
 
-                width:
-                    container.clientWidth || 600,
-
-                height:
-                    container.clientHeight || 150,
-
+                autoSize: true,
 
                 layout: {
 
                     background: {
                         type:
                             LightweightCharts.ColorType.Solid,
-
-                        color:
-                            "#111318"
+                        color: "#111318"
                     },
 
-                    textColor:
-                        "#707783",
+                    textColor: "#707783",
 
-                    fontSize:
-                        10,
+                    fontSize: 10,
 
                     fontFamily:
                         "Inter, system-ui, sans-serif",
 
-                    attributionLogo:
-                        false
+                    attributionLogo: false
 
                 },
 
+
+                /*
+                    ALSO NO GRID
+                */
 
                 grid: {
 
@@ -737,9 +649,9 @@ function createSlopeChart() {
 
                     scaleMargins: {
 
-                        top: 0.15,
+                        top: 0.12,
 
-                        bottom: 0.15
+                        bottom: 0.12
 
                     }
 
@@ -752,7 +664,31 @@ function createSlopeChart() {
 
                     rightOffset: 8,
 
-                    barSpacing: 7
+                    barSpacing: 8
+
+                },
+
+
+                handleScroll: {
+
+                    mouseWheel: true,
+
+                    pressedMouseMove: true,
+
+                    horzTouchDrag: true,
+
+                    vertTouchDrag: true
+
+                },
+
+
+                handleScale: {
+
+                    mouseWheel: true,
+
+                    pinch: true,
+
+                    axisPressedMouseMove: true
 
                 }
 
@@ -765,17 +701,13 @@ function createSlopeChart() {
             LightweightCharts.LineSeries,
             {
 
-                color:
-                    "#7d8794",
+                color: "#7d8794",
 
-                lineWidth:
-                    2,
+                lineWidth: 2,
 
-                priceLineVisible:
-                    false,
+                priceLineVisible: false,
 
-                lastValueVisible:
-                    true
+                lastValueVisible: true
 
             }
         );
@@ -785,82 +717,158 @@ function createSlopeChart() {
         V SLOPE LEVELS
     */
 
-    slopeSeries.createPriceLine({
+    slopeBullLine =
+        slopeSeries.createPriceLine({
 
-        price: 0.03,
+            price: 0.03,
 
-        color: "#36b37e",
+            color: "#36b37e",
 
-        lineWidth: 1,
+            lineWidth: 1,
 
-        lineStyle:
-            LightweightCharts.LineStyle.Dashed,
+            lineStyle:
+                LightweightCharts.LineStyle.Dashed,
 
-        axisLabelVisible: true,
+            axisLabelVisible: true,
 
-        title: "BULL"
+            title: "BULL"
 
-    });
-
-
-    slopeSeries.createPriceLine({
-
-        price: -0.03,
-
-        color: "#e05d5d",
-
-        lineWidth: 1,
-
-        lineStyle:
-            LightweightCharts.LineStyle.Dashed,
-
-        axisLabelVisible: true,
-
-        title: "BEAR"
-
-    });
+        });
 
 
-    slopeSeries.createPriceLine({
+    slopeBearLine =
+        slopeSeries.createPriceLine({
 
-        price: 0,
+            price: -0.03,
 
-        color: "#777d87",
+            color: "#e05d5d",
 
-        lineWidth: 1,
+            lineWidth: 1,
 
-        lineStyle:
-            LightweightCharts.LineStyle.Dashed,
+            lineStyle:
+                LightweightCharts.LineStyle.Dashed,
 
-        axisLabelVisible: false
+            axisLabelVisible: true,
 
-    });
+            title: "BEAR"
+
+        });
+
+
+    slopeZeroLine =
+        slopeSeries.createPriceLine({
+
+            price: 0,
+
+            color: "#777d87",
+
+            lineWidth: 1,
+
+            lineStyle:
+                LightweightCharts.LineStyle.Dashed,
+
+            axisLabelVisible: false
+
+        });
 
 
     /*
-        RESIZE
+        CROSSHAIR EVENT
     */
 
-    const resizeObserver =
-        new ResizeObserver(
-            function() {
-
-                if (!slopeChart) {
-                    return;
-                }
-
-                slopeChart.resize(
-                    container.clientWidth,
-                    container.clientHeight
-                );
-
-            }
-        );
-
-
-    resizeObserver.observe(
-        container
+    mainChart.subscribeCrosshairMove(
+        handleCrosshair
     );
+
+
+    /*
+        INITIAL SIZE
+    */
+
+    window.addEventListener(
+        "resize",
+        resizeCharts
+    );
+
+}
+
+
+/* =========================================================
+   CROSSHAIR OHLC
+========================================================= */
+
+function handleCrosshair(param) {
+
+    if (
+        !param ||
+        !param.time ||
+        !param.seriesData
+    ) {
+
+        return;
+
+    }
+
+
+    const candle =
+        param.seriesData.get(priceSeries);
+
+
+    if (!candle) {
+
+        return;
+
+    }
+
+
+    ohlcOpen.textContent =
+        Number(candle.open).toFixed(2);
+
+    ohlcHigh.textContent =
+        Number(candle.high).toFixed(2);
+
+    ohlcLow.textContent =
+        Number(candle.low).toFixed(2);
+
+    ohlcClose.textContent =
+        Number(candle.close).toFixed(2);
+
+
+    /*
+        Crosshair time
+    */
+
+    if (typeof param.time === "number") {
+
+        const date =
+            new Date(param.time * 1000);
+
+        lastTimeEl.textContent =
+            date.toLocaleTimeString(
+                [],
+                {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false
+                }
+            );
+
+    }
+
+}
+
+
+/* =========================================================
+   RESIZE
+========================================================= */
+
+function resizeCharts() {
+
+    if (mainChart) {
+
+        mainChart.timeScale().fitContent();
+
+    }
 
 }
 
@@ -871,43 +879,23 @@ function createSlopeChart() {
 
 function updateMainChart() {
 
-    if (
-        !priceSeries ||
-        !vCandleSeries
-    ) {
-        return;
-    }
+    if (!priceSeries) return;
 
-
-    /*
-        NORMAL CANDLES
-    */
 
     const marketData =
-        candles.map(
-            function(c) {
+        candles.map(c => ({
 
-                return {
+            time: unixSeconds(c.time),
 
-                    time:
-                        unixSeconds(c.time),
+            open: c.open,
 
-                    open:
-                        c.open,
+            high: c.high,
 
-                    high:
-                        c.high,
+            low: c.low,
 
-                    low:
-                        c.low,
+            close: c.close
 
-                    close:
-                        c.close
-
-                };
-
-            }
-        );
+        }));
 
 
     priceSeries.setData(
@@ -931,14 +919,7 @@ function updateMainChart() {
     const vData = [];
 
 
-    for (
-        let i = 0;
-        i < vc.length;
-        i++
-    ) {
-
-        const c = vc[i];
-
+    for (const c of vc) {
 
         if (
             c.open == null ||
@@ -946,7 +927,9 @@ function updateMainChart() {
             c.low == null ||
             c.close == null
         ) {
+
             continue;
+
         }
 
 
@@ -955,17 +938,13 @@ function updateMainChart() {
             time:
                 unixSeconds(c.time),
 
-            open:
-                c.open,
+            open: c.open,
 
-            high:
-                c.high,
+            high: c.high,
 
-            low:
-                c.low,
+            low: c.low,
 
-            close:
-                c.close
+            close: c.close
 
         });
 
@@ -978,26 +957,74 @@ function updateMainChart() {
 
 
     /*
-        FIRST LOAD ONLY
+        Keep chart close to latest candle
+        without destroying user's ability
+        to pan historical data.
     */
 
-    if (
-        !mainChart._vInitialFit
-    ) {
+    const logicalRange =
+        mainChart.timeScale()
+            .getVisibleLogicalRange();
 
-        mainChart
-            .timeScale()
+
+    if (!logicalRange) {
+
+        mainChart.timeScale()
             .fitContent();
-
-        mainChart._vInitialFit =
-            true;
 
     }
 
 
     /*
-        CURRENT PRICE
+        Update current price line
     */
+
+    updateCurrentPriceLine();
+
+
+    /*
+        Update OHLC display
+    */
+
+    const last =
+        candles[candles.length - 1];
+
+    if (last) {
+
+        priceEl.textContent =
+            last.close.toFixed(2);
+
+        ohlcOpen.textContent =
+            last.open.toFixed(2);
+
+        ohlcHigh.textContent =
+            last.high.toFixed(2);
+
+        ohlcLow.textContent =
+            last.low.toFixed(2);
+
+        ohlcClose.textContent =
+            last.close.toFixed(2);
+
+        lastTimeEl.textContent =
+            formatTime(last.time);
+
+    }
+
+}
+
+
+/* =========================================================
+   CURRENT PRICE LINE
+========================================================= */
+
+let currentPriceLine = null;
+
+
+function updateCurrentPriceLine() {
+
+    if (!priceSeries) return;
+
 
     if (currentPriceLine) {
 
@@ -1011,72 +1038,31 @@ function updateMainChart() {
     currentPriceLine =
         priceSeries.createPriceLine({
 
-            price:
-                lastPrice,
+            price: lastPrice,
 
-            color:
-                "#c9cdd4",
+            color: "#c9cdd4",
 
-            lineWidth:
-                1,
+            lineWidth: 1,
 
             lineStyle:
                 LightweightCharts.LineStyle.Dashed,
 
-            axisLabelVisible:
-                true,
+            axisLabelVisible: true,
 
-            title:
-                "PRICE"
+            title: "PRICE"
 
         });
-
-
-    /*
-        CURRENT DATA
-    */
-
-    const last =
-        candles[candles.length - 1];
-
-
-    if (!last) {
-        return;
-    }
-
-
-    priceEl.textContent =
-        last.close.toFixed(2);
-
-
-    ohlcOpen.textContent =
-        last.open.toFixed(2);
-
-    ohlcHigh.textContent =
-        last.high.toFixed(2);
-
-    ohlcLow.textContent =
-        last.low.toFixed(2);
-
-    ohlcClose.textContent =
-        last.close.toFixed(2);
-
-
-    lastTimeEl.textContent =
-        formatTime(last.time);
 
 }
 
 
 /* =========================================================
-   V SLOPE
+   UPDATE V SLOPE
 ========================================================= */
 
 function updateSlopeChart() {
 
-    if (!slopeSeries) {
-        return;
-    }
+    if (!slopeSeries) return;
 
 
     const slope =
@@ -1092,21 +1078,15 @@ function updateSlopeChart() {
     const data = [];
 
 
-    for (
-        let i = 0;
-        i < slope.length;
-        i++
-    ) {
-
-        const item =
-            slope[i];
-
+    for (const item of slope) {
 
         if (
             item.value == null ||
             !Number.isFinite(item.value)
         ) {
+
             continue;
+
         }
 
 
@@ -1128,20 +1108,45 @@ function updateSlopeChart() {
     );
 
 
+    /*
+        Keep slope aligned with price
+    */
+
+    const mainRange =
+        mainChart.timeScale()
+            .getVisibleLogicalRange();
+
+
+    if (mainRange) {
+
+        slopeChart.timeScale()
+            .setVisibleLogicalRange(
+                mainRange
+            );
+
+    }
+
+
+    /*
+        Current slope status
+    */
+
     const last =
         slope[slope.length - 1];
 
 
-    if (
-        !last ||
-        last.value == null
-    ) {
-        return;
-    }
+    if (!last) return;
 
 
     const value =
         last.value;
+
+
+    if (value == null) {
+
+        return;
+
+    }
 
 
     vSlopeValueEl.textContent =
@@ -1157,14 +1162,12 @@ function updateSlopeChart() {
 
     if (value > 0.03) {
 
-        state =
-            "BULLISH";
+        state = "BULLISH";
 
     }
     else if (value < -0.03) {
 
-        state =
-            "BEARISH";
+        state = "BEARISH";
 
     }
 
@@ -1178,8 +1181,9 @@ function updateSlopeChart() {
 }
 
 
+
 /* =========================================================
-   VLOT
+   UPDATE VLOT
 ========================================================= */
 
 function updateVLOT() {
@@ -1195,9 +1199,7 @@ function updateVLOT() {
         );
 
 
-    if (!result) {
-        return;
-    }
+    if (!result) return;
 
 
     if (
@@ -1205,7 +1207,9 @@ function updateVLOT() {
         result.slDistance == null ||
         result.lotSize == null
     ) {
+
         return;
+
     }
 
 
@@ -1220,348 +1224,4 @@ function updateVLOT() {
         result.lotSize.toFixed(2);
 
     vlotValue.textContent =
-        result.lotSize.toFixed(2);
-
-
-    vlotSignal.textContent =
-        "READY";
-
-    vlotSignalCard.textContent =
-        "READY";
-
-}
-
-
-/* =========================================================
-   V CANDLE STATUS
-========================================================= */
-
-function updateVCandleStatus() {
-
-    const result =
-        calculateVCandle(
-            candles,
-            45,
-            45,
-            0.03
-        );
-
-
-    if (!result || !result.length) {
-        return;
-    }
-
-
-    const last =
-        result[result.length - 1];
-
-
-    if (!last) {
-        return;
-    }
-
-
-    const state =
-        last.close >= last.open
-            ? "BULLISH"
-            : "BEARISH";
-
-
-    vCandleSignalEl.textContent =
-        state;
-
-
-    vCandleValueEl.textContent =
-        last.close.toFixed(2);
-
-   }
-
-
-/* =========================================================
-   UPDATE TERMINAL
-========================================================= */
-
-function updateTerminal() {
-
-    if (!candles.length) {
-        return;
-    }
-
-
-    lastPrice =
-        candles[
-            candles.length - 1
-        ].close;
-
-
-    updateMainChart();
-
-    updateSlopeChart();
-
-    updateVLOT();
-
-    updateVCandleStatus();
-
-
-    statusEl.textContent =
-        "RUNNING";
-
-}
-
-
-/* =========================================================
-   NEW CANDLE
-========================================================= */
-
-function addNewCandle() {
-
-    const next =
-        createNextCandle();
-
-
-    candles.push(next);
-
-
-    if (
-        candles.length >
-        SETTINGS.maxCandles
-    ) {
-
-        candles.shift();
-
-    }
-
-
-    lastPrice =
-        next.close;
-
-
-    updateTerminal();
-
-}
-
-
-/* =========================================================
-   START
-========================================================= */
-
-function startTerminal() {
-
-    /*
-        DATA FIRST
-        This prevents the entire UI
-        from becoming blank if the chart
-        has a problem.
-    */
-
-    candles =
-        createInitialCandles();
-
-
-    lastPrice =
-        candles[
-            candles.length - 1
-        ].close;
-
-
-    /*
-        UI DATA FIRST
-    */
-
-    chartSymbolEl.textContent =
-        SETTINGS.symbol;
-
-    priceEl.textContent =
-        lastPrice.toFixed(2);
-
-    statusEl.textContent =
-        "STARTING";
-
-
-    /*
-        INDICATORS FIRST
-    */
-
-    try {
-
-        updateVLOT();
-
-        updateVCandleStatus();
-
-        updateSlopeValuesOnly();
-
-    }
-    catch (error) {
-
-        console.error(
-            "Indicator startup error:",
-            error
-        );
-
-    }
-
-
-    /*
-        CHART SECOND
-    */
-
-    if (
-        !checkChartLibrary()
-    ) {
-
-        /*
-            Data still works even if
-            chart library fails.
-        */
-
-        statusEl.textContent =
-            "DATA READY";
-
-        return;
-
-    }
-
-
-    try {
-
-        createMainChart();
-
-        createSlopeChart();
-
-        updateMainChart();
-
-        updateSlopeChart();
-
-
-        statusEl.textContent =
-            "RUNNING";
-
-    }
-    catch (error) {
-
-        console.error(
-            "Chart startup error:",
-            error
-        );
-
-
-        /*
-            VERY IMPORTANT:
-            Chart error must NOT destroy
-            the terminal data.
-        */
-
-        statusEl.textContent =
-            "CHART ERROR";
-
-    }
-
-
-    /*
-        CONTINUE SIMULATION
-    */
-
-    setInterval(
-        addNewCandle,
-        SETTINGS.simulationInterval
-    );
-
-}
-
-
-/* =========================================================
-   SLOPE UI ONLY
-========================================================= */
-
-function updateSlopeValuesOnly() {
-
-    const slope =
-        calculateVSlope(
-            candles,
-            60,
-            60,
-            5,
-            0.03
-        );
-
-
-    if (!slope.length) {
-        return;
-    }
-
-
-    const last =
-        slope[slope.length - 1];
-
-
-    if (
-        !last ||
-        last.value == null
-    ) {
-        return;
-    }
-
-
-    const value =
-        last.value;
-
-
-    vSlopeValueEl.textContent =
-        value.toFixed(4);
-
-    vSlopeCardValueEl.textContent =
-        value.toFixed(4);
-
-
-    let state =
-        "NEUTRAL";
-
-
-    if (value > 0.03) {
-
-        state =
-            "BULLISH";
-
-    }
-    else if (value < -0.03) {
-
-        state =
-            "BEARISH";
-
-    }
-
-
-    vSlopeSignalEl.textContent =
-        state;
-
-    vSlopeSignalCardEl.textContent =
-        state;
-
-}
-
-
-/* =========================================================
-   SYMBOL
-========================================================= */
-
-document
-    .getElementById("symbol")
-    .addEventListener(
-        "change",
-        function() {
-
-            SETTINGS.symbol =
-                this.value;
-
-            chartSymbolEl.textContent =
-                SETTINGS.symbol;
-
-        }
-    );
-
-
-/* =========================================================
-   START
-========================================================= */
-
-startTerminal();
+  
