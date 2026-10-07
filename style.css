@@ -7,12 +7,19 @@ body {
     margin: 0;
     padding: 0;
     background: #0f1115;
-    color: #e7e9ed;
-    font-family: Arial, Helvetica, sans-serif;
+    color: #e8e8e8;
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
 }
 
 body {
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 
@@ -21,51 +28,65 @@ body {
 ========================= */
 
 .topbar {
+
     height: 68px;
-    padding: 0 20px;
 
     display: flex;
     align-items: center;
     justify-content: space-between;
 
-    background: #15181e;
-    border-bottom: 1px solid #292d35;
+    padding: 0 20px;
+
+    background: #111318;
+
+    border-bottom: 1px solid #242832;
 }
 
 .brand h1 {
+
     margin: 0;
 
     font-size: 20px;
     letter-spacing: 1.5px;
+
+    color: #ffffff;
 }
 
 .brand span {
+
     display: block;
 
-    margin-top: 4px;
+    margin-top: 3px;
 
-    font-size: 10px;
-    color: #8e949e;
-    letter-spacing: 1px;
+    font-size: 9px;
+
+    letter-spacing: 1.3px;
+
+    color: #777d87;
 }
 
+
 .connection {
+
     display: flex;
     align-items: center;
+
     gap: 8px;
 
     font-size: 11px;
-    color: #aeb4be;
+
+    color: #858b95;
 }
 
 .dot,
 .mini-dot {
-    width: 8px;
-    height: 8px;
+
+    width: 7px;
+    height: 7px;
 
     border-radius: 50%;
 
-    background: #35c979;
+    background: #32b67a;
 }
 
 
@@ -74,7 +95,11 @@ body {
 ========================= */
 
 main {
-    width: min(1400px, 100%);
+
+    width: 100%;
+
+    max-width: 1500px;
+
     margin: auto;
 
     padding: 14px;
@@ -86,12 +111,13 @@ main {
 ========================= */
 
 .market-bar {
+
     display: grid;
 
     grid-template-columns:
-        1.2fr
         1fr
-        1.2fr
+        1fr
+        1fr
         1fr;
 
     gap: 10px;
@@ -100,42 +126,152 @@ main {
 }
 
 .market-item {
-    min-height: 64px;
 
-    padding: 10px 12px;
+    min-height: 66px;
+
+    padding: 11px 13px;
 
     background: #15181e;
-    border: 1px solid #292d35;
-    border-radius: 8px;
 
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    border: 1px solid #252a33;
+
+    border-radius: 8px;
 }
 
 .market-item label {
+
+    display: block;
+
     margin-bottom: 7px;
 
     font-size: 9px;
-    color: #7f8691;
 
     letter-spacing: 1px;
+
+    color: #707783;
 }
 
 .market-item strong {
-    font-size: 16px;
+
+    font-size: 15px;
+
+    color: #f4f4f4;
 }
 
-select {
+.market-item select {
+
     width: 100%;
 
     border: 0;
-    outline: none;
+
+    outline: 0;
 
     background: transparent;
-    color: #e7e9ed;
+
+    color: #eeeeee;
 
     font-size: 14px;
+}
+
+
+/* =========================
+   CHART CARD
+========================= */
+
+.chart-card {
+
+    background: #111318;
+
+    border: 1px solid #252a33;
+
+    border-radius: 9px;
+
+    overflow: hidden;
+}
+
+.chart-header {
+
+    height: 48px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    padding: 0 13px;
+
+    border-bottom: 1px solid #22262e;
+
+    background: #12151a;
+}
+
+.chart-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    white-space: nowrap;
+}
+
+.chart-title strong {
+
+    font-size: 13px;
+
+    color: #f0f0f0;
+}
+
+.chart-timeframe {
+
+    font-size: 12px;
+
+    color: #747b85;
+}
+
+
+.chart-live {
+
+    margin-left: auto;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    font-size: 10px;
+
+    color: #747b85;
+}
+
+
+.ohlc-info {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    font-size: 10px;
+
+    color: #737a85;
+
+    overflow: hidden;
+
+    white-space: nowrap;
+}
+
+.ohlc-info strong {
+
+    color: #cdd1d7;
+
+    font-weight: 500;
+
+    margin-right: 4px;
 }
 
 
@@ -143,147 +279,156 @@ select {
    MAIN CHART
 ========================= */
 
-.chart-card {
-    background: #111419;
-
-    border: 1px solid #292d35;
-    border-radius: 8px;
-
-    overflow: hidden;
-}
-
-.chart-header {
-    height: 44px;
-
-    padding: 0 13px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    background: #15181e;
-    border-bottom: 1px solid #292d35;
-}
-
-.chart-title strong {
-    font-size: 14px;
-}
-
-.chart-timeframe {
-    color: #7f8691;
-    font-size: 12px;
-}
-
-.chart-live {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-
-    color: #9299a4;
-    font-size: 11px;
-}
-
 .main-chart {
+
     position: relative;
 
-    width: 100%;
-    height: 430px;
+    height: 470px;
 
-    background: #101318;
+    background: #111318;
 }
 
+
+/*
+    IMPORTANT:
+    Lightweight Charts controls the actual canvas.
+*/
+
 #chart {
-    display: block;
+
+    position: absolute;
+
+    inset: 0;
 
     width: 100%;
+
     height: 100%;
 }
 
+
+/*
+    No grid.
+*/
+
+#chart .tv-lightweight-charts {
+
+    background: transparent !important;
+}
+
+
 .chart-label {
+
     position: absolute;
 
     top: 10px;
+
     left: 12px;
 
-    padding: 5px 8px;
+    pointer-events: none;
 
-    background: rgba(20, 23, 29, 0.85);
+    z-index: 5;
 
-    border: 1px solid #30353e;
+    padding: 4px 7px;
+
+    background: rgba(15, 17, 21, 0.82);
+
+    border: 1px solid #282d36;
+
     border-radius: 4px;
 
     font-size: 9px;
-    color: #9299a4;
 
-    pointer-events: none;
+    letter-spacing: 1px;
+
+    color: #858c96;
 }
 
 
 /* =========================
-   V SLOPE PANEL
+   INDICATOR PANEL
 ========================= */
 
 .indicator-panel {
-    margin-top: 10px;
 
-    background: #111419;
+    margin-top: 12px;
 
-    border: 1px solid #292d35;
-    border-radius: 8px;
+    background: #111318;
+
+    border: 1px solid #252a33;
+
+    border-radius: 9px;
 
     overflow: hidden;
 }
 
 .panel-header {
-    min-height: 48px;
 
-    padding: 8px 13px;
+    min-height: 50px;
+
+    padding: 9px 13px;
 
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
 
-    background: #15181e;
-    border-bottom: 1px solid #292d35;
+    border-bottom: 1px solid #22262e;
 }
 
 .panel-header strong {
-    font-size: 13px;
+
+    font-size: 12px;
 }
 
 .panel-description {
-    margin-left: 8px;
 
-    color: #777e89;
-    font-size: 10px;
+    display: block;
+
+    margin-top: 3px;
+
+    font-size: 9px;
+
+    color: #707783;
 }
 
 .panel-value {
+
     display: flex;
+
     align-items: center;
+
     gap: 10px;
 }
 
 .panel-value strong {
+
     font-size: 13px;
 }
 
 .panel-value span {
-    font-size: 10px;
-    color: #8e949e;
+
+    font-size: 9px;
+
+    color: #6e7580;
 }
 
-.slope-chart {
-    width: 100%;
-    height: 145px;
 
-    background: #101318;
+/* =========================
+   SLOPE CHART
+========================= */
+
+.slope-chart {
+
+    height: 150px;
+
+    position: relative;
 }
 
 #slopeChart {
-    display: block;
 
     width: 100%;
+
     height: 100%;
 }
 
@@ -293,50 +438,58 @@ select {
 ========================= */
 
 .vlot-panel {
-    margin-top: 10px;
 
-    padding: 13px;
+    margin-top: 12px;
 
-    background: #15181e;
+    padding: 14px;
 
-    border: 1px solid #292d35;
-    border-radius: 8px;
+    background: #111318;
+
+    border: 1px solid #252a33;
+
+    border-radius: 9px;
 }
 
 .vlot-title {
+
     display: flex;
-    align-items: center;
+
     justify-content: space-between;
 
-    margin-bottom: 12px;
+    align-items: center;
+
+    margin-bottom: 13px;
 }
 
 .vlot-title strong {
+
     display: block;
-    font-size: 13px;
+
+    font-size: 12px;
 }
 
-.vlot-title span:not(.ready-badge) {
-    display: block;
-
-    margin-top: 3px;
+.vlot-title span {
 
     font-size: 9px;
-    color: #777e89;
+
+    color: #707783;
 }
 
 .ready-badge {
-    padding: 5px 8px;
+
+    padding: 4px 8px;
 
     border-radius: 4px;
 
-    background: #1d2a23;
-    color: #67d69a;
+    background: #18382c;
 
-    font-size: 9px;
+    color: #58c493 !important;
+
+    font-size: 9px !important;
 }
 
 .vlot-grid {
+
     display: grid;
 
     grid-template-columns:
@@ -346,39 +499,48 @@ select {
 }
 
 .vlot-item {
+
     padding: 10px;
 
-    background: #101318;
+    background: #15181e;
 
-    border: 1px solid #292d35;
+    border: 1px solid #252a33;
+
     border-radius: 6px;
 }
 
 .vlot-item span {
+
     display: block;
 
-    margin-bottom: 6px;
+    margin-bottom: 5px;
 
-    color: #777e89;
+    font-size: 8px;
 
-    font-size: 9px;
+    color: #707783;
+
     letter-spacing: 1px;
 }
 
 .vlot-item strong {
-    font-size: 15px;
+
+    font-size: 13px;
+
+    color: #eeeeee;
 }
 
 .vlot-item.lot {
-    border-color: #3b4741;
+
+    border-color: #304a43;
 }
 
 
 /* =========================
-   QUICK CARDS
+   INDICATOR CARDS
 ========================= */
 
 .indicator-grid {
+
     display: grid;
 
     grid-template-columns:
@@ -386,45 +548,49 @@ select {
 
     gap: 10px;
 
-    margin-top: 10px;
+    margin-top: 12px;
 }
 
 .indicator-card {
+
     padding: 13px;
 
-    min-height: 105px;
+    background: #111318;
 
-    background: #15181e;
+    border: 1px solid #252a33;
 
-    border: 1px solid #292d35;
     border-radius: 8px;
 }
 
 .indicator-title {
+
     display: flex;
-    align-items: center;
+
     justify-content: space-between;
 
     font-size: 10px;
-    letter-spacing: 0.5px;
-}
 
-.indicator-title span:last-child {
-    color: #9299a4;
+    color: #8c929c;
 }
 
 .indicator-value {
-    margin-top: 14px;
+
+    margin-top: 10px;
 
     font-size: 19px;
-    font-weight: bold;
+
+    font-weight: 600;
+
+    color: #f2f2f2;
 }
 
 .indicator-description {
-    margin-top: 6px;
 
-    color: #777e89;
+    margin-top: 5px;
+
     font-size: 9px;
+
+    color: #676e79;
 }
 
 
@@ -433,44 +599,53 @@ select {
 ========================= */
 
 .terminal-card {
-    margin-top: 10px;
+
+    margin-top: 12px;
 
     padding: 14px;
 
-    background: #15181e;
+    background: #111318;
 
-    border: 1px solid #292d35;
+    border: 1px solid #252a33;
+
     border-radius: 8px;
 }
 
 .terminal-card h2 {
+
     margin: 0 0 12px;
 
     font-size: 11px;
+
     letter-spacing: 1px;
 }
 
 .status-row {
+
     display: flex;
+
     justify-content: space-between;
 
-    padding: 8px 0;
+    padding: 7px 0;
 
-    border-bottom: 1px solid #23272e;
+    border-bottom: 1px solid #20242b;
 
-    font-size: 11px;
+    font-size: 10px;
 }
 
 .status-row:last-child {
+
     border-bottom: 0;
 }
 
 .status-row span {
-    color: #777e89;
+
+    color: #707783;
 }
 
 .status-row strong {
-    color: #aeb4be;
+
+    color: #bfc4cc;
 }
 
 
@@ -479,14 +654,14 @@ select {
 ========================= */
 
 footer {
+
     padding: 18px;
 
     text-align: center;
 
-    color: #555b65;
-
     font-size: 9px;
-    letter-spacing: 1px;
+
+    color: #555b65;
 }
 
 
@@ -496,35 +671,49 @@ footer {
 
 @media (max-width: 700px) {
 
-    main {
-        padding: 8px;
-    }
-
     .topbar {
+
         padding: 0 12px;
     }
 
+    main {
+
+        padding: 8px;
+    }
+
     .market-bar {
+
         grid-template-columns:
-            1fr 1fr;
+            repeat(2, 1fr);
     }
 
     .main-chart {
-        height: 350px;
+
+        height: 390px;
     }
 
-    .indicator-grid {
-        grid-template-columns:
-            1fr;
+    .chart-header {
+
+        padding: 0 9px;
+
+        gap: 7px;
+    }
+
+    .ohlc-info {
+
+        display: none;
     }
 
     .vlot-grid {
+
         grid-template-columns:
-            1fr 1fr;
+            repeat(2, 1fr);
     }
 
-    .panel-description {
-        display: none;
+    .indicator-grid {
+
+        grid-template-columns:
+            1fr;
     }
 
     }
