@@ -1275,3 +1275,200 @@ function updateVCandleStatus() {
         last.close.toFixed(2);
 
    }
+
+
+/* =========================================================
+   UPDATE TERMINAL
+========================================================= */
+
+function updateTerminal() {
+
+    if (!candles.length) {
+        return;
+    }
+
+
+    lastPrice =
+        candles[
+            candles.length - 1
+        ].close;
+
+
+    updateMainChart();
+
+    updateSlopeChart();
+
+    updateVLOT();
+
+    updateVCandleStatus();
+
+
+    statusEl.textContent =
+        "RUNNING";
+
+}
+
+
+/* =========================================================
+   NEW CANDLE
+========================================================= */
+
+function addNewCandle() {
+
+    const next =
+        createNextCandle();
+
+
+    candles.push(next);
+
+
+    if (
+        candles.length >
+        SETTINGS.maxCandles
+    ) {
+
+        candles.shift();
+
+    }
+
+
+    lastPrice =
+        next.close;
+
+
+    updateTerminal();
+
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+function startTerminal() {
+
+    /*
+        DATA FIRST
+        This prevents the entire UI
+        from becoming blank if the chart
+        has a problem.
+    */
+
+    candles =
+        createInitialCandles();
+
+
+    lastPrice =
+        candles[
+            candles.length - 1
+        ].close;
+
+
+    /*
+        UI DATA FIRST
+    */
+
+    chartSymbolEl.textContent =
+        SETTINGS.symbol;
+
+    priceEl.textContent =
+        lastPrice.toFixed(2);
+
+    statusEl.textContent =
+        "STARTING";
+
+
+    /*
+        INDICATORS FIRST
+    */
+
+    try {
+
+        updateVLOT();
+
+        updateVCandleStatus();
+
+        updateSlopeValuesOnly();
+
+    }
+    catch (error) {
+
+        console.error(
+            "Indicator startup error:",
+            error
+        );
+
+    }
+
+
+    /*
+        CHART SECOND
+    */
+
+    if (
+        !checkChartLibrary()
+    ) {
+
+        /*
+            Data still works even if
+            chart library fails.
+        */
+
+        statusEl.textContent =
+            "DATA READY";
+
+        return;
+
+    }
+
+
+    try {
+
+        createMainChart();
+
+        createSlopeChart();
+
+        updateMainChart();
+
+        updateSlopeChart();
+
+
+        statusEl.textContent =
+            "RUNNING";
+
+    }
+    catch (error) {
+
+        console.error(
+            "Chart startup error:",
+            error
+        );
+
+
+        /*
+            VERY IMPORTANT:
+            Chart error must NOT destroy
+            the terminal data.
+        */
+
+        statusEl.textContent =
+            "CHART ERROR";
+
+    }
+
+
+    /*
+        CONTINUE SIMULATION
+    */
+
+    setInterval(
+        addNewCandle,
+        SETTINGS.simulationInterval
+    );
+
+}
+
+
+/* =========================================================
+   SLOPE UI ONLY
+========================================================= */
