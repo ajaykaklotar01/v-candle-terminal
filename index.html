@@ -11,173 +11,380 @@
 
 <body>
 
-    <header class="topbar">
-        <div>
-            <h1>V CANDLE</h1>
-            <span>PERSONAL MARKET TERMINAL</span>
+<header class="topbar">
+
+    <div class="brand">
+        <h1>V CANDLE</h1>
+        <span>PERSONAL MARKET TERMINAL</span>
+    </div>
+
+    <div class="connection">
+        <span class="dot"></span>
+        <span id="connectionText">SIMULATION</span>
+    </div>
+
+</header>
+
+
+<main>
+
+    <!-- MARKET CONTROL -->
+
+    <section class="market-bar">
+
+        <div class="market-item">
+            <label>SYMBOL</label>
+
+            <select id="symbol">
+                <option>NIFTY 50</option>
+                <option>BANK NIFTY</option>
+                <option>FINNIFTY</option>
+            </select>
         </div>
 
-        <div class="connection">
-            <span class="dot"></span>
-            <span id="connectionText">SIMULATION</span>
+
+        <div class="market-item">
+            <label>TIMEFRAME</label>
+
+            <select id="timeframe">
+                <option value="3">3 MIN</option>
+            </select>
         </div>
-    </header>
 
 
-    <main>
+        <div class="market-item price-box">
+            <label>PRICE</label>
+            <strong id="price">--</strong>
+        </div>
 
-        <!-- MARKET CONTROL -->
-        <section class="market-bar">
 
-            <div class="market-item">
-                <label>SYMBOL</label>
-                <select id="symbol">
-                    <option>NIFTY 50</option>
-                    <option>BANK NIFTY</option>
-                    <option>FINNIFTY</option>
-                </select>
+        <div class="market-item">
+            <label>STATUS</label>
+            <strong id="status">WAITING</strong>
+        </div>
+
+    </section>
+
+
+    <!-- MAIN CHART -->
+
+    <section class="chart-card">
+
+        <div class="chart-header">
+
+            <div class="chart-title">
+
+                <strong id="chartSymbol">NIFTY 50</strong>
+
+                <span class="chart-timeframe">
+                    · 3 MIN
+                </span>
+
             </div>
 
-            <div class="market-item">
-                <label>TIMEFRAME</label>
-                <select id="timeframe">
-                    <option value="3">3 MIN</option>
-                </select>
+
+            <div class="chart-live">
+
+                <span class="mini-dot"></span>
+
+                <span id="lastTime">
+                    --:--
+                </span>
+
             </div>
 
-            <div class="market-item">
-                <label>PRICE</label>
-                <strong id="price">--</strong>
-            </div>
-
-            <div class="market-item">
-                <label>STATUS</label>
-                <strong id="status">WAITING</strong>
-            </div>
-
-        </section>
+        </div>
 
 
-        <!-- CHART -->
-        <section class="chart-card">
-
-            <div class="chart-header">
-                <div>
-                    <strong id="chartSymbol">NIFTY 50</strong>
-                    <span> · 3 MIN</span>
-                </div>
-
-                <div id="lastTime">--:--</div>
-            </div>
+        <div class="main-chart">
 
             <canvas id="chart"></canvas>
 
-        </section>
-
-
-        <!-- INDICATORS -->
-        <section class="indicator-grid">
-
-            <div class="indicator-card">
-
-                <div class="indicator-title">
-                    <span>V CANDLE V2</span>
-                    <span id="vCandleSignal">WAIT</span>
-                </div>
-
-                <div class="indicator-value" id="vCandleValue">
-                    --
-                </div>
-
-                <div class="indicator-description">
-                    Main V Candle calculation
-                </div>
-
+            <div class="chart-label">
+                V CANDLE V2
             </div>
 
+        </div>
 
-            <div class="indicator-card">
+    </section>
 
-                <div class="indicator-title">
-                    <span>V SLOPE</span>
-                    <span id="vSlopeSignal">NEUTRAL</span>
-                </div>
 
-                <div class="indicator-value" id="vSlopeValue">
-                    --
-                </div>
+    <!-- V SLOPE PANEL -->
 
-                <div class="indicator-description">
+    <section class="indicator-panel">
+
+        <div class="panel-header">
+
+            <div>
+
+                <strong>V SLOPE</strong>
+
+                <span class="panel-description">
                     EMA slope normalized by ATR
-                </div>
+                </span>
 
             </div>
 
 
-            <div class="indicator-card">
+            <div class="panel-value">
 
-                <div class="indicator-title">
-                    <span>VLOT</span>
-                    <span id="vlotSignal">WAIT</span>
-                </div>
-
-                <div class="indicator-value" id="vlotValue">
+                <strong id="vSlopeValue">
                     --
-                </div>
+                </strong>
 
-                <div class="indicator-description">
-                    VLOT status
-                </div>
+                <span id="vSlopeSignal">
+                    NEUTRAL
+                </span>
 
             </div>
 
-        </section>
+        </div>
 
 
-        <!-- TERMINAL STATUS -->
-        <section class="terminal-card">
+        <div class="slope-chart">
 
-            <h2>TERMINAL STATUS</h2>
+            <canvas id="slopeChart"></canvas>
 
-            <div class="status-row">
-                <span>Data Source</span>
-                <strong id="dataSource">SIMULATED OHLC</strong>
+        </div>
+
+    </section>
+
+
+    <!-- VLOT PANEL -->
+
+    <section class="vlot-panel">
+
+        <div class="vlot-title">
+
+            <div>
+                <strong>VLOT</strong>
+
+                <span>
+                    Risk & position calculation
+                </span>
             </div>
 
-            <div class="status-row">
-                <span>Candle Engine</span>
-                <strong id="candleEngine">3 MIN OHLC</strong>
+
+            <span id="vlotSignal" class="ready-badge">
+                WAIT
+            </span>
+
+        </div>
+
+
+        <div class="vlot-grid">
+
+            <div class="vlot-item">
+
+                <span>RISK</span>
+
+                <strong id="vlotRisk">
+                    $5.00
+                </strong>
+
             </div>
 
-            <div class="status-row">
-                <span>V Candle</span>
-                <strong>READY</strong>
+
+            <div class="vlot-item">
+
+                <span>ATR</span>
+
+                <strong id="vlotATR">
+                    --
+                </strong>
+
             </div>
 
-            <div class="status-row">
-                <span>V Slope</span>
-                <strong>READY</strong>
+
+            <div class="vlot-item">
+
+                <span>SLD</span>
+
+                <strong id="vlotSLD">
+                    --
+                </strong>
+
             </div>
 
-            <div class="status-row">
+
+            <div class="vlot-item lot">
+
+                <span>LOT</span>
+
+                <strong id="vlotLOT">
+                    --
+                </strong>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- QUICK INDICATOR STATUS -->
+
+    <section class="indicator-grid">
+
+        <div class="indicator-card">
+
+            <div class="indicator-title">
+
+                <span>V CANDLE V2</span>
+
+                <span id="vCandleSignal">
+                    WAIT
+                </span>
+
+            </div>
+
+
+            <div class="indicator-value" id="vCandleValue">
+                --
+            </div>
+
+
+            <div class="indicator-description">
+                Main V Candle calculation
+            </div>
+
+        </div>
+
+
+        <div class="indicator-card">
+
+            <div class="indicator-title">
+
+                <span>V SLOPE</span>
+
+                <span id="vSlopeSignalCard">
+                    NEUTRAL
+                </span>
+
+            </div>
+
+
+            <div class="indicator-value">
+                <span id="vSlopeCardValue">
+                    --
+                </span>
+            </div>
+
+
+            <div class="indicator-description">
+                Direction and momentum
+            </div>
+
+        </div>
+
+
+        <div class="indicator-card">
+
+            <div class="indicator-title">
+
                 <span>VLOT</span>
-                <strong>READY</strong>
+
+                <span id="vlotSignalCard">
+                    WAIT
+                </span>
+
             </div>
 
-        </section>
 
-    </main>
-
-
-    <footer>
-        V CANDLE TERMINAL · PERSONAL USE
-    </footer>
+            <div class="indicator-value" id="vlotValue">
+                --
+            </div>
 
 
-    <script src="indicators/v-candle.js"></script>
+            <div class="indicator-description">
+                Risk / SLD / LOT
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- TERMINAL STATUS -->
+
+    <section class="terminal-card">
+
+        <h2>TERMINAL STATUS</h2>
+
+
+        <div class="status-row">
+
+            <span>Data Source</span>
+
+            <strong id="dataSource">
+                SIMULATED OHLC
+            </strong>
+
+        </div>
+
+
+        <div class="status-row">
+
+            <span>Candle Engine</span>
+
+            <strong id="candleEngine">
+                3 MIN OHLC
+            </strong>
+
+        </div>
+
+
+        <div class="status-row">
+
+            <span>V Candle</span>
+
+            <strong>
+                READY
+            </strong>
+
+        </div>
+
+
+        <div class="status-row">
+
+            <span>V Slope</span>
+
+            <strong>
+                READY
+            </strong>
+
+        </div>
+
+
+        <div class="status-row">
+
+            <span>VLOT</span>
+
+            <strong>
+                READY
+            </strong>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<footer>
+    V CANDLE TERMINAL · PERSONAL USE
+</footer>
+
+
+<!-- INDICATORS -->
+
+<script src="indicators/v-candle.js"></script>
+
 <script src="indicators/v-slope.js"></script>
+
 <script src="indicators/vlot.js"></script>
+
 <script src="app.js"></script>
 
 </body>
-      </html>
+    </html>
