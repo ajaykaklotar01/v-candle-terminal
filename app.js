@@ -1566,3 +1566,382 @@ function drawMainChart(
 ‎
 ‎}
 ‎
+
+‎// ==========================================
+‎// CROSSHAIR TOOLTIP
+‎// ==========================================
+‎
+‎function showCrosshairInfo(
+‎    index,
+‎    x,
+‎    y
+‎) {
+‎
+‎    let tooltip =
+‎        document.querySelector(
+‎            ".chart-tooltip"
+‎        );
+‎
+‎
+‎    if (!tooltip) {
+‎
+‎        tooltip =
+‎            document.createElement(
+‎                "div"
+‎            );
+‎
+‎        tooltip.className =
+‎            "chart-tooltip";
+‎
+‎
+‎        document.querySelector(
+‎            ".main-chart"
+‎        ).appendChild(
+‎            tooltip
+‎        );
+‎
+‎    }
+‎
+‎
+‎    const candle =
+‎        candles[index];
+‎
+‎
+‎    if (!candle) {
+‎        return;
+‎    }
+‎
+‎
+‎    const vcandles =
+‎        calculateVCandle(
+‎            candles,
+‎            SETTINGS.vCandle.smoothLen,
+‎            SETTINGS.vCandle.afterLen,
+‎            SETTINGS.vCandle.dojiThreshold
+‎        );
+‎
+‎
+‎    const v =
+‎        vcandles[index];
+‎
+‎
+‎    tooltip.innerHTML = `
+‎
+‎        <div class="tooltip-time">
+‎            ${formatTime(candle.time)}
+‎        </div>
+‎
+‎        <div class="tooltip-row">
+‎            <span>Open</span>
+‎            <strong>${candle.open.toFixed(2)}</strong>
+‎        </div>
+‎
+‎        <div class="tooltip-row">
+‎            <span>High</span>
+‎            <strong>${candle.high.toFixed(2)}</strong>
+‎        </div>
+‎
+‎        <div class="tooltip-row">
+‎            <span>Low</span>
+‎            <strong>${candle.low.toFixed(2)}</strong>
+‎        </div>
+‎
+‎        <div class="tooltip-row">
+‎            <span>Close</span>
+‎            <strong>${candle.close.toFixed(2)}</strong>
+‎        </div>
+‎
+‎        ${
+‎            v
+‎                ? `
+‎                <div class="tooltip-row">
+‎                    <span>V Close</span>
+‎                    <strong>${v.close.toFixed(2)}</strong>
+‎                </div>
+‎                `
+‎                : ""
+‎        }
+‎
+‎    `;
+‎
+‎
+‎    tooltip.style.display =
+‎        "block";
+‎
+‎
+‎    const parent =
+‎        document.querySelector(
+‎            ".main-chart"
+‎        );
+‎
+‎
+‎    const parentWidth =
+‎        parent.clientWidth;
+‎
+‎
+‎    const tooltipWidth =
+‎        tooltip.offsetWidth;
+‎
+‎
+‎    let left =
+‎        x + 14;
+‎
+‎
+‎    if (
+‎        left +
+‎        tooltipWidth >
+‎        parentWidth -
+‎        5
+‎    ) {
+‎
+‎        left =
+‎            x -
+‎            tooltipWidth -
+‎            14;
+‎
+‎    }
+‎
+‎
+‎    tooltip.style.left =
+‎        Math.max(
+‎            5,
+‎            left
+‎        ) + "px";
+‎
+‎
+‎    tooltip.style.top =
+‎        Math.max(
+‎            5,
+‎            y + 12
+‎        ) + "px";
+‎
+‎}
+‎
+‎
+‎function hideCrosshairInfo() {
+‎
+‎    const tooltip =
+‎        document.querySelector(
+‎            ".chart-tooltip"
+‎        );
+‎
+‎
+‎    if (tooltip) {
+‎
+‎        tooltip.style.display =
+‎            "none";
+‎
+‎    }
+‎
+‎}
+‎
+‎
+‎// ==========================================
+‎// CROSSHAIR EVENTS
+‎// ==========================================
+‎
+‎function handlePointerMove(event) {
+‎
+‎    const rect =
+‎        chartCanvas.getBoundingClientRect();
+‎
+‎
+‎    const x =
+‎        event.clientX -
+‎        rect.left;
+‎
+‎
+‎    const y =
+‎        event.clientY -
+‎        rect.top;
+‎
+‎
+‎    const visibleCount =
+‎        Math.min(
+‎            70,
+‎            candles.length
+‎        );
+‎
+‎
+‎    const chartLeft = 12;
+‎
+‎    const chartRight = 68;
+‎
+‎
+‎    const chartWidth =
+‎        rect.width -
+‎        chartLeft -
+‎        chartRight;
+‎
+‎
+‎    const step =
+‎        chartWidth /
+‎        visibleCount;
+‎
+‎
+‎    const relativeX =
+‎        x -
+‎        chartLeft;
+‎
+‎
+‎    if (
+‎        relativeX < 0 ||
+‎        relativeX > chartWidth
+‎    ) {
+‎
+‎        crosshair.active =
+‎            false;
+‎
+‎        hideCrosshairInfo();
+‎
+‎        drawCharts();
+‎
+‎        return;
+‎
+‎    }
+‎
+‎
+‎    let visibleIndex =
+‎        Math.floor(
+‎            relativeX /
+‎            step
+‎        );
+‎
+‎
+‎    visibleIndex =
+‎        Math.max(
+‎            0,
+‎            Math.min(
+‎                visibleCount - 1,
+‎                visibleIndex
+‎            )
+‎        );
+‎
+‎
+‎    const actualIndex =
+‎        candles.length -
+‎        visibleCount +
+‎        visibleIndex;
+‎
+‎
+‎    crosshair.active =
+‎        true;
+‎
+‎    crosshair.x =
+‎        chartLeft +
+‎        visibleIndex *
+‎        step +
+‎        step / 2;
+‎
+‎    crosshair.y =
+‎        y;
+‎
+‎    crosshair.candleIndex =
+‎        actualIndex;
+‎
+‎
+‎    drawCharts();
+‎
+‎
+‎    showCrosshairInfo(
+‎        actualIndex,
+‎        crosshair.x,
+‎        crosshair.y
+‎    );
+‎
+‎}
+‎
+‎
+‎chartCanvas.addEventListener(
+‎    "pointermove",
+‎    handlePointerMove
+‎);
+‎
+‎
+‎chartCanvas.addEventListener(
+‎    "pointerleave",
+‎    () => {
+‎
+‎        crosshair.active =
+‎            false;
+‎
+‎        hideCrosshairInfo();
+‎
+‎        drawCharts();
+‎
+‎    }
+‎);
+‎
+‎
+‎// ==========================================
+‎// TERMINAL UPDATE
+‎// ==========================================
+‎
+‎function updateTerminal() {
+‎
+‎    updateMarketUI();
+‎
+‎    updateVCandle();
+‎
+‎    updateVSlope();
+‎
+‎    updateVLOT();
+‎
+‎    drawCharts();
+‎
+‎}
+‎
+‎
+‎// ==========================================
+‎// NEW CANDLE
+‎// ==========================================
+‎
+‎function addNewCandle() {
+‎
+‎    candles.push(
+‎        createSimulatedCandle()
+‎    );
+‎
+‎
+‎    if (
+‎        candles.length > 300
+‎    ) {
+‎
+‎        candles.shift();
+‎
+‎    }
+‎
+‎
+‎    updateTerminal();
+‎
+‎}
+‎
+‎
+‎// ==========================================
+‎// START
+‎// ==========================================
+‎
+‎generateInitialHistory();
+‎
+‎
+‎setTimeout(
+‎    () => {
+‎
+‎        resizeAll();
+‎
+‎        updateTerminal();
+‎
+‎    },
+‎    100
+‎);
+‎
+‎
+‎setInterval(
+‎    () => {
+‎
+‎        addNewCandle();
+‎
+‎    },
+‎    1500
+‎);
+‎
