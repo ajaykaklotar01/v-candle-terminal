@@ -605,11 +605,20 @@ function drawMainChart(
         chartWidth /
         visibleCount;
 
-    const candleWidth =
-        Math.max(
-            3,
-            step * 0.55
-        );
+    // ======================================
+// BETTER CANDLE SIZE
+// ======================================
+
+const candleWidth =
+    Math.max(
+        3,
+        Math.min(
+            12,
+            step * 0.58
+        )
+    );
+
+const wickWidth = 1;
 
 
     function priceToY(price) {
@@ -661,21 +670,28 @@ function drawMainChart(
                     : "#e05b63";
 
 
-            // WICK
+            // ======================================
+// NORMAL CANDLE WICK
+// ======================================
 
-            chartCtx.beginPath();
+chartCtx.lineWidth =
+    wickWidth;
 
-            chartCtx.moveTo(
-                x,
-                highY
-            );
+chartCtx.beginPath();
 
-            chartCtx.lineTo(
-                x,
-                lowY
-            );
+chartCtx.moveTo(
+    x,
+    highY
+);
 
-            chartCtx.stroke();
+chartCtx.lineTo(
+    x,
+    lowY
+);
+
+chartCtx.stroke();
+
+chartCtx.lineWidth = 1;
 
 
             // BODY
@@ -695,16 +711,23 @@ function drawMainChart(
                     )
                 );
 
-            chartCtx.fillRect(
-                x -
-                candleWidth / 2,
-                bodyTop,
-                candleWidth,
-                bodyHeight
-            );
+            // ======================================
+// NORMAL CANDLE BODY
+// ======================================
 
-        }
+const normalBodyWidth =
+    Math.max(
+        2,
+        candleWidth
     );
+
+chartCtx.fillRect(
+    x -
+    normalBodyWidth / 2,
+    bodyTop,
+    normalBodyWidth,
+    bodyHeight
+);
 
 
     // V CANDLE OVERLAY
@@ -765,21 +788,27 @@ function drawMainChart(
                 color;
 
 
-            // V WICK
+            // ======================================
+// V CANDLE WICK
+// ======================================
 
-            chartCtx.beginPath();
+chartCtx.lineWidth = 1.2;
 
-            chartCtx.moveTo(
-                x,
-                highY
-            );
+chartCtx.beginPath();
 
-            chartCtx.lineTo(
-                x,
-                lowY
-            );
+chartCtx.moveTo(
+    x,
+    highY
+);
 
-            chartCtx.stroke();
+chartCtx.lineTo(
+    x,
+    lowY
+);
+
+chartCtx.stroke();
+
+chartCtx.lineWidth = 1;
 
 
             // V BODY
@@ -800,22 +829,29 @@ function drawMainChart(
                 );
 
 
-            chartCtx.globalAlpha =
-                0.62;
+            // ======================================
+// V CANDLE BODY
+// ======================================
 
+const vBodyWidth =
+    Math.max(
+        2,
+        candleWidth * 0.68
+    );
 
-            chartCtx.fillRect(
-                x -
-                candleWidth * 0.32,
-                bodyTop,
-                candleWidth * 0.64,
-                bodyHeight
-            );
+chartCtx.globalAlpha =
+    0.70;
 
+chartCtx.fillRect(
+    x -
+    vBodyWidth / 2,
+    bodyTop,
+    vBodyWidth,
+    bodyHeight
+);
 
-            chartCtx.globalAlpha =
-                1;
-
+chartCtx.globalAlpha =
+    1;
         }
     );
 
