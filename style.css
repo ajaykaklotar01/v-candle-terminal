@@ -34,14 +34,12 @@ body {
 
 .brand h1 {
     margin: 0;
-
     font-size: 20px;
     letter-spacing: 1.5px;
 }
 
 .brand span {
     display: block;
-
     margin-top: 4px;
 
     font-size: 10px;
@@ -62,9 +60,7 @@ body {
 .mini-dot {
     width: 8px;
     height: 8px;
-
     border-radius: 50%;
-
     background: #35c979;
 }
 
@@ -76,7 +72,6 @@ body {
 main {
     width: min(1400px, 100%);
     margin: auto;
-
     padding: 14px;
 }
 
@@ -95,7 +90,6 @@ main {
         1fr;
 
     gap: 10px;
-
     margin-bottom: 12px;
 }
 
@@ -118,7 +112,6 @@ main {
 
     font-size: 9px;
     color: #7f8691;
-
     letter-spacing: 1px;
 }
 
@@ -190,6 +183,9 @@ select {
     height: 430px;
 
     background: #101318;
+
+    /* Important for touch chart interaction */
+    touch-action: none;
 }
 
 #chart {
@@ -197,6 +193,10 @@ select {
 
     width: 100%;
     height: 100%;
+
+    cursor: crosshair;
+
+    touch-action: none;
 }
 
 .chart-label {
@@ -207,7 +207,7 @@ select {
 
     padding: 5px 8px;
 
-    background: rgba(20, 23, 29, 0.85);
+    background: rgba(20, 23, 29, 0.88);
 
     border: 1px solid #30353e;
     border-radius: 4px;
@@ -220,7 +220,60 @@ select {
 
 
 /* =========================
-   V SLOPE PANEL
+   CROSSHAIR INFO
+========================= */
+
+.chart-tooltip {
+    position: absolute;
+
+    display: none;
+
+    min-width: 145px;
+
+    padding: 8px 10px;
+
+    background: rgba(17, 20, 25, 0.96);
+
+    border: 1px solid #3a404a;
+    border-radius: 5px;
+
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+
+    pointer-events: none;
+
+    z-index: 10;
+
+    font-size: 10px;
+}
+
+.chart-tooltip .tooltip-time {
+    margin-bottom: 6px;
+
+    color: #9ba2ad;
+
+    font-size: 9px;
+}
+
+.chart-tooltip .tooltip-row {
+    display: flex;
+    justify-content: space-between;
+
+    gap: 15px;
+
+    margin: 3px 0;
+}
+
+.chart-tooltip .tooltip-row span {
+    color: #777f8b;
+}
+
+.chart-tooltip .tooltip-row strong {
+    color: #e6e9ed;
+}
+
+
+/* =========================
+   V SLOPE
 ========================= */
 
 .indicator-panel {
@@ -278,6 +331,8 @@ select {
     height: 145px;
 
     background: #101318;
+
+    touch-action: none;
 }
 
 #slopeChart {
@@ -510,7 +565,7 @@ footer {
     }
 
     .main-chart {
-        height: 350px;
+        height: 360px;
     }
 
     .indicator-grid {
@@ -525,6 +580,10 @@ footer {
 
     .panel-description {
         display: none;
+    }
+
+    .brand h1 {
+        font-size: 17px;
     }
 
     }
