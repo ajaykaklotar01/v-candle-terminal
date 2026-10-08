@@ -1246,4 +1246,95 @@ function drawCharts() {
         calculateVSlope(
             candles,
             SETTINGS.vSlope.smoothLen,
-            SETTI
+            SETTINGS.vSlope.afterLen,
+            SETTINGS.vSlope.slopeEMA,
+            SETTINGS.vSlope.neutralZone
+        );
+
+
+    drawMainChart(
+        vcandles
+    );
+
+    drawSlopeChart(
+        slope
+    );
+
+}
+
+
+// ==========================================
+// UPDATE EVERYTHING
+// ==========================================
+
+function updateTerminal() {
+
+    updateMarketUI();
+
+    updateVCandle();
+
+    updateVSlope();
+
+    updateVLOT();
+
+    drawCharts();
+
+}
+
+
+// ==========================================
+// NEW SIMULATED CANDLE
+// ==========================================
+
+function addNewCandle() {
+
+    candles.push(
+        createSimulatedCandle()
+    );
+
+
+    if (
+        candles.length > 300
+    ) {
+
+        candles.shift();
+
+    }
+
+
+    updateTerminal();
+
+}
+
+
+// ==========================================
+// START
+// ==========================================
+
+generateInitialHistory();
+
+
+// Give browser time to calculate dimensions.
+
+setTimeout(
+    () => {
+
+        resizeAll();
+
+        updateTerminal();
+
+    },
+    100
+);
+
+
+// Simulation tick.
+
+setInterval(
+    () => {
+
+        addNewCandle();
+
+    },
+    1500
+);
