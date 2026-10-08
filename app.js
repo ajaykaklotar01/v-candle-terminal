@@ -599,17 +599,24 @@ function drawMainChart(
     }
 
 
-    // CANDLE WIDTH
+// ======================================
+// BETTER CANDLE DIMENSIONS
+// ======================================
 
-    const step =
-        chartWidth /
-        visibleCount;
+const step =
+    chartWidth /
+    visibleCount;
 
-    const candleWidth =
-        Math.max(
-            3,
-            step * 0.55
-        );
+const candleWidth =
+    Math.max(
+        3,
+        Math.min(
+            11,
+            step * 0.58
+        )
+    );
+
+const wickWidth = 1;
 
 
     function priceToY(price) {
@@ -661,24 +668,31 @@ function drawMainChart(
                     : "#e05b63";
 
 
-            // WICK
+// ======================================
+// NORMAL CANDLE WICK
+// ======================================
 
-            chartCtx.beginPath();
+chartCtx.lineWidth =
+    wickWidth;
 
-            chartCtx.moveTo(
-                x,
-                highY
-            );
+chartCtx.beginPath();
 
-            chartCtx.lineTo(
-                x,
-                lowY
-            );
+chartCtx.moveTo(
+    x,
+    highY
+);
 
-            chartCtx.stroke();
+chartCtx.lineTo(
+    x,
+    lowY
+);
+
+chartCtx.stroke();
+
+chartCtx.lineWidth = 1;
 
 
-            // BODY
+          // BODY
 
             const bodyTop =
                 Math.min(
@@ -695,12 +709,22 @@ function drawMainChart(
                     )
                 );
 
-            chartCtx.fillRect(
-                x -
-                candleWidth / 2,
-                bodyTop,
-                candleWidth,
-                bodyHeight
+            // ======================================
+// NORMAL CANDLE BODY
+// ======================================
+
+const normalBodyWidth =
+    Math.max(
+        2,
+        candleWidth
+    );
+
+chartCtx.fillRect(
+    x -
+    normalBodyWidth / 2,
+    bodyTop,
+    normalBodyWidth,
+    bodyHeight
             );
 
         }
@@ -765,59 +789,70 @@ function drawMainChart(
                 color;
 
 
-            // V WICK
+            // ======================================
+// V CANDLE WICK
+// ======================================
 
-            chartCtx.beginPath();
+chartCtx.lineWidth = 1.2;
 
-            chartCtx.moveTo(
-                x,
-                highY
-            );
+chartCtx.beginPath();
 
-            chartCtx.lineTo(
-                x,
-                lowY
-            );
+chartCtx.moveTo(
+    x,
+    highY
+);
 
-            chartCtx.stroke();
+chartCtx.lineTo(
+    x,
+    lowY
+);
 
+chartCtx.stroke();
 
-            // V BODY
-
-            const bodyTop =
-                Math.min(
-                    openY,
-                    closeY
-                );
-
-            const bodyHeight =
-                Math.max(
-                    2,
-                    Math.abs(
-                        closeY -
-                        openY
-                    )
-                );
+chartCtx.lineWidth = 1;
 
 
-            chartCtx.globalAlpha =
-                0.62;
+// ======================================
+// V CANDLE BODY
+// ======================================
 
-
-            chartCtx.fillRect(
-                x -
-                candleWidth * 0.32,
-                bodyTop,
-                candleWidth * 0.64,
-                bodyHeight
-            );
-
-
-            chartCtx.globalAlpha =
-                1;
-
-        }
+const bodyTop =
+    Math.min(
+        openY,
+        closeY
     );
+
+const bodyHeight =
+    Math.max(
+        2,
+        Math.abs(
+            closeY -
+            openY
+        )
+    );
+
+const vBodyWidth =
+    Math.max(
+        2,
+        candleWidth * 0.68
+    );
+
+
+chartCtx.globalAlpha =
+    0.70;
+
+
+chartCtx.fillRect(
+    x -
+    vBodyWidth / 2,
+    bodyTop,
+    vBodyWidth,
+    bodyHeight
+);
+
+
+chartCtx.globalAlpha =
+    1;
 
 
     // CURRENT PRICE LINE
@@ -881,41 +916,153 @@ function drawMainChart(
     }
 
 
-    // TIME LABELS
+            // ======================================
+// CLEAN PRICE AXIS
+// ======================================
 
-    chartCtx.fillStyle =
-        "#6f7681";
+chartCtx.fillStyle =
+    "#111419";
 
-    chartCtx.font =
-        "9px Arial";
+chartCtx.fillRect(
+    width - 65,
+    0,
+    65,
+    height
+);
 
-    for (
-        let i = 0;
-        i < visibleCount;
-        i += 10
-    ) {
 
-        const candle =
-            visibleCandles[i];
+chartCtx.strokeStyle =
+    "#292d35";
 
-        if (!candle) {
-            continue;
-        }
+chartCtx.lineWidth = 1;
 
-        const x =
-            chartLeft +
-            step * i +
-            step / 2;
+chartCtx.beginPath();
 
-        chartCtx.fillText(
-            formatTime(candle.time),
-            x - 17,
-            height - 8
+chartCtx.moveTo(
+    width - 65,
+    0
+);
+
+chartCtx.lineTo(
+    width - 65,
+    height
+);
+
+chartCtx.stroke();
+
+
+// Price labels
+
+chartCtx.fillStyle =
+    "#727985";
+
+chartCtx.font =
+    "10px Arial";
+
+
+for (
+    let i = 0;
+    i <= 6;
+    i++
+) {
+
+    const y =
+        chartTop +
+        (chartHeight / 6) *
+        i;
+
+
+    const price =
+        max -
+        (
+            (max - min) *
+            i /
+            6
         );
 
-    }
+
+    chartCtx.fillText(
+        price.toFixed(2),
+        width - 61,
+        y + 3
+    );
 
 }
+            
+// ======================================
+// CLEAN TIME AXIS
+// ======================================
+
+chartCtx.fillStyle =
+    "#111419";
+
+chartCtx.fillRect(
+    chartLeft,
+    height - 28,
+    chartWidth,
+    28
+);
+
+
+chartCtx.strokeStyle =
+    "#292d35";
+
+chartCtx.lineWidth = 1;
+
+chartCtx.beginPath();
+
+chartCtx.moveTo(
+    chartLeft,
+    height - 28
+);
+
+chartCtx.lineTo(
+    chartLeft +
+    chartWidth,
+    height - 28
+);
+
+chartCtx.stroke();
+
+
+chartCtx.fillStyle =
+    "#6f7681";
+
+chartCtx.font =
+    "9px Arial";
+
+
+for (
+    let i = 0;
+    i < visibleCount;
+    i += 10
+) {
+
+    const candle =
+        visibleCandles[i];
+
+
+    if (!candle) {
+        continue;
+    }
+
+
+    const x =
+        chartLeft +
+        step * i +
+        step / 2;
+
+
+    chartCtx.fillText(
+        formatTime(
+            candle.time
+        ),
+        x - 17,
+        height - 9
+    );
+
+}
+
 
 
 // ==========================================
