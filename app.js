@@ -1338,3 +1338,443 @@ setInterval(
     },
     1500
 );
+
+
+// ==========================================
+// V1.1 CROSSHAIR + OHLC TOOLTIP
+// ==========================================
+
+let crosshairActive = false;
+let crosshairX = 0;
+let crosshairY = 0;
+let crosshairCandleIndex = -1;
+
+
+// ==========================================
+// TOOLTIP
+// ==========================================
+
+function showChartTooltip(
+    candleIndex,
+    x,
+    y
+) {
+
+    let tooltip =
+        document.querySelector(
+            ".chart-tooltip"
+        );
+
+
+    if (!tooltip) {
+
+        tooltip =
+            document.createElement(
+                "div"
+            );
+
+        tooltip.className =
+            "chart-tooltip";
+
+
+        document.querySelector(
+            ".main-chart"
+        ).appendChild(
+            tooltip
+        );
+
+    }
+
+
+    const candle =
+        candles[candleIndex];
+
+
+    if (!candle) {
+        return;
+    }
+
+
+    // Calculate V Candle again
+    const vcandles =
+        calculateVCandle(
+            candles,
+            SETTINGS.vCandle.smoothLen,
+            SETTINGS.vCandle.afterLen,
+            SETTINGS.vCandle.dojiThreshold
+        );
+
+
+    const v =
+        vcandles[candleIndex];
+
+
+    tooltip.innerHTML = `
+
+        <div class="tooltip-time">
+            ${formatTime(candle.time)}
+        </div>
+
+        <div class="tooltip-row">
+            <span>Open</span>
+            <strong>${candle.open.toFixed(2)}</strong>
+        </div>
+
+        <div class="tooltip-row">
+            <span>High</span>
+            <strong>${candle.high.toFixed(2)}</strong>
+        </div>
+
+        <div class="tooltip-row">
+            <span>Low</span>
+            <strong>${candle.low.toFixed(2)}</strong>
+        </div>
+
+        <div class="tooltip-row">
+            <span>Close</span>
+            <strong>${candle.close.toFixed(2)}</strong>
+        </div>
+
+        ${
+            v
+                ? `
+                <div class="tooltip-row">
+                    <span>V Close</span>
+                    <strong>${v.close.toFixed(2)}</strong>
+                </div>
+                `
+                : ""
+        }
+
+    `;
+
+
+    tooltip.style.display =
+        "block";
+
+
+    const chart =
+        document.querySelector(
+            ".main-chart"
+        );
+
+
+    const chartWidth =
+        chart.clientWidth;
+
+
+    const tooltipWidth =
+        tooltip.offsetWidth;
+
+
+    let left =
+        x + 14;
+
+
+    // Prevent tooltip going outside right side
+
+    if (
+        left +
+        tooltipWidth >
+        chartWidth -
+        5
+    ) {
+
+        left =
+            x -
+            tooltipWidth -
+            14;
+
+    }
+
+
+    tooltip.style.left =
+        Math.max(
+            5,
+            left
+        ) + "px";
+
+
+    tooltip.style.top =
+        Math.max(
+            5,
+            y + 12
+        ) + "px";
+
+}
+
+
+// ==========================================
+// HIDE TOOLTIP
+// ==========================================
+
+function hideChartTooltip() {
+
+    const tooltip =
+        document.querySelector(
+            ".chart-tooltip"
+        );
+
+
+    if (tooltip) {
+
+        tooltip.style.display =
+            "none";
+
+    }
+
+}
+
+
+// ==========================================
+// DRAW CROSSHAIR
+// ==========================================
+
+function drawCrosshair() {
+
+    if (!crosshairActive) {
+        return;
+    }
+
+
+    const rect =
+        chartCanvas.getBoundingClientRect();
+
+
+    const width =
+        rect.width;
+
+    const height =
+        rect.height;
+
+
+    const chartLeft = 10;
+    const chartRight = 65;
+    const chartTop = 18;
+    const chartBottom = 28;
+
+
+    const chartWidth =
+        width -
+        chartLeft -
+        chartRight;
+
+
+    const chartHeight =
+        height -
+        chartTop -
+        chartBottom;
+
+
+    chartCtx.strokeStyle =
+        "#737b86";
+
+
+    chartCtx.lineWidth = 1;
+
+
+    chartCtx.setLineDash(
+        [4, 4]
+    );
+
+
+    // Vertical line
+
+    chartCtx.beginPath();
+
+    chartCtx.moveTo(
+        crosshairX,
+        chartTop
+    );
+
+    chartCtx.lineTo(
+        crosshairX,
+        chartTop +
+        chartHeight
+    );
+
+    chartCtx.stroke();
+
+
+    // Horizontal line
+
+    chartCtx.beginPath();
+
+    chartCtx.moveTo(
+        chartLeft,
+        crosshairY
+    );
+
+    chartCtx.lineTo(
+        chartLeft +
+        chartWidth,
+        crosshairY
+    );
+
+    chartCtx.stroke();
+
+
+    chartCtx.setLineDash([]);
+
+
+    chartCtx.lineWidth = 1;
+
+}
+
+
+// ==========================================
+// MOUSE / TOUCH MOVE
+// ==========================================
+
+function handleChartPointerMove(event) {
+
+    const rect =
+        chartCanvas.getBoundingClientRect();
+
+
+    const x =
+        event.clientX -
+        rect.left;
+
+
+    const y =
+        event.clientY -
+        rect.top;
+
+
+    const visibleCount =
+        Math.min(
+            70,
+            candles.length
+        );
+
+
+    const chartLeft = 10;
+    const chartRight = 65;
+
+
+    const chartWidth =
+        rect.width -
+        chartLeft -
+        chartRight;
+
+
+    const step =
+        chartWidth /
+        visibleCount;
+
+
+    const relativeX =
+        x -
+        chartLeft;
+
+
+    // Outside chart
+
+    if (
+        relativeX < 0 ||
+        relativeX > chartWidth
+    ) {
+
+        crosshairActive =
+            false;
+
+
+        hideChartTooltip();
+
+
+        drawCharts();
+
+
+        return;
+
+    }
+
+
+    let visibleIndex =
+        Math.floor(
+            relativeX /
+            step
+        );
+
+
+    visibleIndex =
+        Math.max(
+            0,
+            Math.min(
+                visibleCount - 1,
+                visibleIndex
+            )
+        );
+
+
+    const actualIndex =
+        candles.length -
+        visibleCount +
+        visibleIndex;
+
+
+    crosshairActive =
+        true;
+
+
+    crosshairX =
+        chartLeft +
+        visibleIndex *
+        step +
+        step / 2;
+
+
+    crosshairY =
+        y;
+
+
+    crosshairCandleIndex =
+        actualIndex;
+
+
+    drawCharts();
+
+
+    drawCrosshair();
+
+
+    showChartTooltip(
+        actualIndex,
+        crosshairX,
+        crosshairY
+    );
+
+}
+
+
+// ==========================================
+// POINTER MOVE
+// ==========================================
+
+chartCanvas.addEventListener(
+    "pointermove",
+    handleChartPointerMove
+);
+
+
+// ==========================================
+// POINTER LEAVE
+// ==========================================
+
+chartCanvas.addEventListener(
+    "pointerleave",
+    () => {
+
+        crosshairActive =
+            false;
+
+        crosshairCandleIndex =
+            -1;
+
+        hideChartTooltip();
+
+        drawCharts();
+
+    }
+);
