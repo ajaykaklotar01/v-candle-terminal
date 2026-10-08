@@ -1239,3 +1239,330 @@ function drawMainChart(
     };
 
 }
+
+
+‎// ==========================================
+‎// SLOPE CHART
+‎// ==========================================
+‎
+‎function drawSlopeChart(
+‎    slopeValues
+‎) {
+‎
+‎    const rect =
+‎        slopeCanvas.getBoundingClientRect();
+‎
+‎    const width =
+‎        rect.width;
+‎
+‎    const height =
+‎        rect.height;
+‎
+‎
+‎    slopeCtx.clearRect(
+‎        0,
+‎        0,
+‎        width,
+‎        height
+‎    );
+‎
+‎
+‎    slopeCtx.fillStyle =
+‎        "#101318";
+‎
+‎    slopeCtx.fillRect(
+‎        0,
+‎        0,
+‎        width,
+‎        height
+‎    );
+‎
+‎
+‎    if (
+‎        !slopeValues ||
+‎        slopeValues.length === 0
+‎    ) {
+‎        return;
+‎    }
+‎
+‎
+‎    const visibleCount =
+‎        Math.min(
+‎            70,
+‎            slopeValues.length
+‎        );
+‎
+‎
+‎    const values =
+‎        slopeValues.slice(
+‎            slopeValues.length -
+‎            visibleCount
+‎        );
+‎
+‎
+‎    const left = 10;
+‎    const right = 65;
+‎    const top = 12;
+‎    const bottom = 12;
+‎
+‎
+‎    const plotWidth =
+‎        width -
+‎        left -
+‎        right;
+‎
+‎
+‎    const plotHeight =
+‎        height -
+‎        top -
+‎        bottom;
+‎
+‎
+‎    const neutral =
+‎        SETTINGS.vSlope.neutralZone;
+‎
+‎
+‎    let min =
+‎        -0.10;
+‎
+‎    let max =
+‎        0.10;
+‎
+‎
+‎    values.forEach(
+‎        v => {
+‎
+‎            if (
+‎                v.value != null
+‎            ) {
+‎
+‎                min =
+‎                    Math.min(
+‎                        min,
+‎                        v.value
+‎                    );
+‎
+‎                max =
+‎                    Math.max(
+‎                        max,
+‎                        v.value
+‎                    );
+‎
+‎            }
+‎
+‎        }
+‎    );
+‎
+‎
+‎    const range =
+‎        Math.max(
+‎            0.10,
+‎            max - min
+‎        );
+‎
+‎
+‎    const center =
+‎        (max + min) / 2;
+‎
+‎
+‎    min =
+‎        center -
+‎        range * 0.65;
+‎
+‎
+‎    max =
+‎        center +
+‎        range * 0.65;
+‎
+‎
+‎    function valueToY(value) {
+‎
+‎        return top +
+‎            (
+‎                (max - value) /
+‎                (max - min)
+‎            ) *
+‎            plotHeight;
+‎
+‎    }
+‎
+‎
+‎    const levels = [
+‎
+‎        {
+‎            value: neutral,
+‎            label: "+0.03"
+‎        },
+‎
+‎        {
+‎            value: 0,
+‎            label: "0"
+‎        },
+‎
+‎        {
+‎            value: -neutral,
+‎            label: "-0.03"
+‎        }
+‎
+‎    ];
+‎
+‎
+‎    levels.forEach(
+‎        level => {
+‎
+‎            const y =
+‎                valueToY(
+‎                    level.value
+‎                );
+‎
+‎
+‎            slopeCtx.strokeStyle =
+‎                "#30353d";
+‎
+‎
+‎            slopeCtx.setLineDash(
+‎                [5, 4]
+‎            );
+‎
+‎
+‎            slopeCtx.beginPath();
+‎
+‎            slopeCtx.moveTo(
+‎                left,
+‎                y
+‎            );
+‎
+‎            slopeCtx.lineTo(
+‎                left +
+‎                plotWidth,
+‎                y
+‎            );
+‎
+‎            slopeCtx.stroke();
+‎
+‎
+‎            slopeCtx.setLineDash([]);
+‎
+‎
+‎            slopeCtx.fillStyle =
+‎                "#737a85";
+‎
+‎
+‎            slopeCtx.font =
+‎                "9px Arial";
+‎
+‎
+‎            slopeCtx.fillText(
+‎                level.label,
+‎                width - 48,
+‎                y + 3
+‎            );
+‎
+‎        }
+‎    );
+‎
+‎
+‎    const step =
+‎        plotWidth /
+‎        Math.max(
+‎            1,
+‎            visibleCount - 1
+‎        );
+‎
+‎
+‎    for (
+‎        let i = 1;
+‎        i < values.length;
+‎        i++
+‎    ) {
+‎
+‎        const previous =
+‎            values[i - 1];
+‎
+‎        const current =
+‎            values[i];
+‎
+‎
+‎        if (
+‎            previous.value == null ||
+‎            current.value == null
+‎        ) {
+‎            continue;
+‎        }
+‎
+‎
+‎        const x1 =
+‎            left +
+‎            step *
+‎            (i - 1);
+‎
+‎
+‎        const x2 =
+‎            left +
+‎            step *
+‎            i;
+‎
+‎
+‎        const y1 =
+‎            valueToY(
+‎                previous.value
+‎            );
+‎
+‎
+‎        const y2 =
+‎            valueToY(
+‎                current.value
+‎            );
+‎
+‎
+‎        let color =
+‎            "#6e8ee8";
+‎
+‎
+‎        if (
+‎            current.state ===
+‎            "BULLISH"
+‎        ) {
+‎
+‎            color =
+‎                "#43c982";
+‎
+‎        } else if (
+‎            current.state ===
+‎            "BEARISH"
+‎        ) {
+‎
+‎            color =
+‎                "#e05b63";
+‎
+‎        }
+‎
+‎
+‎        slopeCtx.strokeStyle =
+‎            color;
+‎
+‎
+‎        slopeCtx.lineWidth = 2;
+‎
+‎
+‎        slopeCtx.beginPath();
+‎
+‎        slopeCtx.moveTo(
+‎            x1,
+‎            y1
+‎        );
+‎
+‎        slopeCtx.lineTo(
+‎            x2,
+‎            y2
+‎        );
+‎
+‎        slopeCtx.stroke();
+‎
+‎    }
+‎
+‎
+‎    slopeCtx.lineWidth = 1;
+‎
+‎}
+‎
