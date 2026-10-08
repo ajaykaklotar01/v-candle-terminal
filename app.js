@@ -1,6 +1,6 @@
 // ==========================================
 // V CANDLE TERMINAL
-// PROFESSIONAL CHART UI V1
+// PROFESSIONAL CHART V2
 // ==========================================
 
 
@@ -39,7 +39,7 @@ const SETTINGS = {
 
 
 // ==========================================
-// MARKET DATA
+// DATA
 // ==========================================
 
 let candles = [];
@@ -47,7 +47,25 @@ let candles = [];
 let currentPrice = 25150;
 
 let simulatedTime =
-    Date.now() - (150 * 3 * 60 * 1000);
+    Date.now() -
+    (150 * 3 * 60 * 1000);
+
+
+// ==========================================
+// CHART STATE
+// ==========================================
+
+let crosshair = {
+
+    active: false,
+
+    x: 0,
+
+    y: 0,
+
+    candleIndex: -1
+
+};
 
 
 // ==========================================
@@ -96,6 +114,7 @@ function resizeCanvas(canvas, ctx) {
 
 }
 
+
 function resizeAll() {
 
     resizeCanvas(
@@ -111,6 +130,7 @@ function resizeAll() {
     drawCharts();
 
 }
+
 
 window.addEventListener(
     "resize",
@@ -134,19 +154,28 @@ function createSimulatedCandle() {
         open + movement;
 
     const high =
-        Math.max(open, close)
-        + Math.random() * 12;
+        Math.max(
+            open,
+            close
+        ) +
+        Math.random() * 12;
 
     const low =
-        Math.min(open, close)
-        - Math.random() * 12;
+        Math.min(
+            open,
+            close
+        ) -
+        Math.random() * 12;
 
     currentPrice =
         close;
 
     const candle = {
 
-        time: new Date(simulatedTime),
+        time:
+            new Date(
+                simulatedTime
+            ),
 
         open: open,
 
@@ -169,7 +198,7 @@ function createSimulatedCandle() {
 
 
 // ==========================================
-// INITIAL HISTORY
+// HISTORY
 // ==========================================
 
 function generateInitialHistory() {
@@ -180,10 +209,13 @@ function generateInitialHistory() {
 
     simulatedTime =
         Date.now() -
-        (150 *
-        SETTINGS.timeframeMinutes *
-        60 *
-        1000);
+        (
+            150 *
+            SETTINGS.timeframeMinutes *
+            60 *
+            1000
+        );
+
 
     for (
         let i = 0;
@@ -201,43 +233,7 @@ function generateInitialHistory() {
 
 
 // ==========================================
-// UI UPDATE
-// ==========================================
-
-function updateMarketUI() {
-
-    const last =
-        candles[candles.length - 1];
-
-    if (!last) {
-        return;
-    }
-
-    document.getElementById(
-        "price"
-    ).textContent =
-        last.close.toFixed(2);
-
-    document.getElementById(
-        "chartSymbol"
-    ).textContent =
-        SETTINGS.symbol;
-
-    document.getElementById(
-        "status"
-    ).textContent =
-        "RUNNING";
-
-    document.getElementById(
-        "lastTime"
-    ).textContent =
-        formatTime(last.time);
-
-}
-
-
-// ==========================================
-// TIME FORMAT
+// TIME
 // ==========================================
 
 function formatTime(date) {
@@ -250,6 +246,50 @@ function formatTime(date) {
             hour12: false
         }
     );
+
+}
+
+
+// ==========================================
+// MARKET UI
+// ==========================================
+
+function updateMarketUI() {
+
+    const last =
+        candles[
+            candles.length - 1
+        ];
+
+    if (!last) {
+        return;
+    }
+
+
+    document.getElementById(
+        "price"
+    ).textContent =
+        last.close.toFixed(2);
+
+
+    document.getElementById(
+        "chartSymbol"
+    ).textContent =
+        SETTINGS.symbol;
+
+
+    document.getElementById(
+        "status"
+    ).textContent =
+        "RUNNING";
+
+
+    document.getElementById(
+        "lastTime"
+    ).textContent =
+        formatTime(
+            last.time
+        );
 
 }
 
@@ -268,12 +308,17 @@ function updateVCandle() {
             SETTINGS.vCandle.dojiThreshold
         );
 
+
     if (!values.length) {
         return null;
     }
 
+
     const last =
-        values[values.length - 1];
+        values[
+            values.length - 1
+        ];
+
 
     const signal =
         last.isDoji
@@ -282,15 +327,18 @@ function updateVCandle() {
                 ? "BULLISH"
                 : "BEARISH";
 
+
     document.getElementById(
         "vCandleSignal"
     ).textContent =
         signal;
 
+
     document.getElementById(
         "vCandleValue"
     ).textContent =
         last.close.toFixed(2);
+
 
     return values;
 
@@ -312,40 +360,51 @@ function updateVSlope() {
             SETTINGS.vSlope.neutralZone
         );
 
+
     if (!values.length) {
         return null;
     }
 
+
     const last =
-        values[values.length - 1];
+        values[
+            values.length - 1
+        ];
+
 
     const value =
         last.value == null
             ? 0
             : last.value;
 
+
     const signal =
         last.state;
+
 
     document.getElementById(
         "vSlopeValue"
     ).textContent =
         value.toFixed(4);
 
+
     document.getElementById(
         "vSlopeSignal"
     ).textContent =
         signal;
+
 
     document.getElementById(
         "vSlopeCardValue"
     ).textContent =
         value.toFixed(4);
 
+
     document.getElementById(
         "vSlopeSignalCard"
     ).textContent =
         signal;
+
 
     return values;
 
@@ -368,13 +427,16 @@ function updateVLOT() {
             SETTINGS.vlot.manualSLD
         );
 
+
     if (!result) {
         return null;
     }
 
+
     if (result.atr == null) {
         return result;
     }
+
 
     document.getElementById(
         "vlotRisk"
@@ -382,10 +444,12 @@ function updateVLOT() {
         "$" +
         result.risk.toFixed(2);
 
+
     document.getElementById(
         "vlotATR"
     ).textContent =
         result.atr.toFixed(2);
+
 
     document.getElementById(
         "vlotSLD"
@@ -393,30 +457,33 @@ function updateVLOT() {
         "$" +
         result.slDistance.toFixed(2);
 
+
     document.getElementById(
         "vlotLOT"
     ).textContent =
         result.lotSize.toFixed(2);
 
+
     document.getElementById(
         "vlotValue"
     ).textContent =
         "$" +
-        result.slDistance.toFixed(2)
-        +
-        " / "
-        +
+        result.slDistance.toFixed(2) +
+        " / " +
         result.lotSize.toFixed(2);
+
 
     document.getElementById(
         "vlotSignal"
     ).textContent =
         "READY";
 
+
     document.getElementById(
         "vlotSignalCard"
     ).textContent =
         "READY";
+
 
     return result;
 
@@ -424,7 +491,7 @@ function updateVLOT() {
 
 
 // ==========================================
-// DRAW MAIN CHART
+// MAIN CHART
 // ==========================================
 
 function drawMainChart(
@@ -440,6 +507,7 @@ function drawMainChart(
     const height =
         rect.height;
 
+
     chartCtx.clearRect(
         0,
         0,
@@ -447,8 +515,6 @@ function drawMainChart(
         height
     );
 
-
-    // BACKGROUND
 
     chartCtx.fillStyle =
         "#101318";
@@ -462,18 +528,24 @@ function drawMainChart(
 
 
     const visibleCount =
-        Math.min(70, candles.length);
+        Math.min(
+            70,
+            candles.length
+        );
+
 
     const visibleCandles =
         candles.slice(
-            candles.length - visibleCount
+            candles.length -
+            visibleCount
         );
 
 
     const visibleV =
         vcandles
             ? vcandles.slice(
-                vcandles.length - visibleCount
+                vcandles.length -
+                visibleCount
             )
             : [];
 
@@ -485,60 +557,71 @@ function drawMainChart(
         -Infinity;
 
 
-    visibleCandles.forEach(c => {
-
-        min =
-            Math.min(
-                min,
-                c.low
-            );
-
-        max =
-            Math.max(
-                max,
-                c.high
-            );
-
-    });
-
-
-    visibleV.forEach(c => {
-
-        if (c) {
+    visibleCandles.forEach(
+        candle => {
 
             min =
                 Math.min(
                     min,
-                    c.low
+                    candle.low
                 );
 
             max =
                 Math.max(
                     max,
-                    c.high
+                    candle.high
                 );
 
         }
+    );
 
-    });
+
+    visibleV.forEach(
+        candle => {
+
+            if (!candle) {
+                return;
+            }
+
+            min =
+                Math.min(
+                    min,
+                    candle.low
+                );
+
+            max =
+                Math.max(
+                    max,
+                    candle.high
+                );
+
+        }
+    );
+
+
+    const range =
+        max - min || 1;
 
 
     const padding =
-        (max - min) * 0.12;
+        range * 0.12;
+
 
     min -= padding;
     max += padding;
 
 
-    const chartLeft = 10;
-    const chartRight = 65;
+    const chartLeft = 12;
+    const chartRight = 68;
     const chartTop = 18;
-    const chartBottom = 28;
+    const chartBottom = 30;
+
 
     const chartWidth =
         width -
         chartLeft -
         chartRight;
+
 
     const chartHeight =
         height -
@@ -546,12 +629,26 @@ function drawMainChart(
         chartBottom;
 
 
-    // GRID
+    function priceToY(price) {
 
-    chartCtx.strokeStyle =
-        "#22262d";
+        return chartTop +
+            (
+                (max - price) /
+                (max - min)
+            ) *
+            chartHeight;
+
+    }
+
+
+    // ======================================
+    // GRID
+    // ======================================
 
     chartCtx.lineWidth = 1;
+
+    chartCtx.font =
+        "10px Arial";
 
 
     for (
@@ -562,7 +659,15 @@ function drawMainChart(
 
         const y =
             chartTop +
-            (chartHeight / 6) * i;
+            (
+                chartHeight /
+                6
+            ) * i;
+
+
+        chartCtx.strokeStyle =
+            "#22262d";
+
 
         chartCtx.beginPath();
 
@@ -572,7 +677,8 @@ function drawMainChart(
         );
 
         chartCtx.lineTo(
-            chartLeft + chartWidth,
+            chartLeft +
+            chartWidth,
             y
         );
 
@@ -581,48 +687,48 @@ function drawMainChart(
 
         const price =
             max -
-            ((max - min) *
-            i / 6);
+            (
+                (max - min) *
+                i /
+                6
+            );
+
 
         chartCtx.fillStyle =
             "#727985";
 
-        chartCtx.font =
-            "10px Arial";
 
         chartCtx.fillText(
             price.toFixed(2),
-            width - 58,
+            width - 61,
             y + 3
         );
 
     }
 
 
-    // CANDLE WIDTH
+    // ======================================
+    // CANDLE DIMENSIONS
+    // ======================================
 
     const step =
         chartWidth /
         visibleCount;
 
+
     const candleWidth =
         Math.max(
             3,
-            step * 0.55
+            Math.min(
+                12,
+                step * 0.58
+            )
         );
 
 
-    function priceToY(price) {
-
-        return chartTop +
-            ((max - price) /
-            (max - min)) *
-            chartHeight;
-
-    }
-
-
-    // NORMAL OHLC CANDLES
+    // ======================================
+    // NORMAL CANDLES
+    // ======================================
 
     visibleCandles.forEach(
         (candle, index) => {
@@ -632,17 +738,26 @@ function drawMainChart(
                 step * index +
                 step / 2;
 
+
             const openY =
-                priceToY(candle.open);
+                priceToY(
+                    candle.open
+                );
 
             const closeY =
-                priceToY(candle.close);
+                priceToY(
+                    candle.close
+                );
 
             const highY =
-                priceToY(candle.high);
+                priceToY(
+                    candle.high
+                );
 
             const lowY =
-                priceToY(candle.low);
+                priceToY(
+                    candle.low
+                );
 
 
             const bullish =
@@ -650,10 +765,28 @@ function drawMainChart(
                 candle.open;
 
 
+            const bodyTop =
+                Math.min(
+                    openY,
+                    closeY
+                );
+
+
+            const bodyHeight =
+                Math.max(
+                    1,
+                    Math.abs(
+                        closeY -
+                        openY
+                    )
+                );
+
+
             chartCtx.strokeStyle =
                 bullish
                     ? "#43c982"
                     : "#e05b63";
+
 
             chartCtx.fillStyle =
                 bullish
@@ -661,7 +794,7 @@ function drawMainChart(
                     : "#e05b63";
 
 
-            // WICK
+            // wick
 
             chartCtx.beginPath();
 
@@ -678,22 +811,7 @@ function drawMainChart(
             chartCtx.stroke();
 
 
-            // BODY
-
-            const bodyTop =
-                Math.min(
-                    openY,
-                    closeY
-                );
-
-            const bodyHeight =
-                Math.max(
-                    1,
-                    Math.abs(
-                        closeY -
-                        openY
-                    )
-                );
+            // body
 
             chartCtx.fillRect(
                 x -
@@ -707,7 +825,9 @@ function drawMainChart(
     );
 
 
-    // V CANDLE OVERLAY
+    // ======================================
+    // V CANDLE
+    // ======================================
 
     visibleV.forEach(
         (candle, index) => {
@@ -716,6 +836,7 @@ function drawMainChart(
                 return;
             }
 
+
             const x =
                 chartLeft +
                 step * index +
@@ -723,24 +844,33 @@ function drawMainChart(
 
 
             const openY =
-                priceToY(candle.open);
+                priceToY(
+                    candle.open
+                );
 
             const closeY =
-                priceToY(candle.close);
+                priceToY(
+                    candle.close
+                );
 
             const highY =
-                priceToY(candle.high);
+                priceToY(
+                    candle.high
+                );
 
             const lowY =
-                priceToY(candle.low);
+                priceToY(
+                    candle.low
+                );
 
 
             let color;
 
+
             if (candle.isDoji) {
 
                 color =
-                    "#8d939c";
+                    "#a0a6ae";
 
             } else if (
                 candle.close >=
@@ -748,12 +878,12 @@ function drawMainChart(
             ) {
 
                 color =
-                    "#9be7b7";
+                    "#b1edc7";
 
             } else {
 
                 color =
-                    "#ee9298";
+                    "#f0a0a5";
 
             }
 
@@ -765,7 +895,11 @@ function drawMainChart(
                 color;
 
 
-            // V WICK
+            chartCtx.globalAlpha =
+                0.72;
+
+
+            // V wick
 
             chartCtx.beginPath();
 
@@ -782,13 +916,14 @@ function drawMainChart(
             chartCtx.stroke();
 
 
-            // V BODY
+            // V body
 
             const bodyTop =
                 Math.min(
                     openY,
                     closeY
                 );
+
 
             const bodyHeight =
                 Math.max(
@@ -798,10 +933,6 @@ function drawMainChart(
                         openY
                     )
                 );
-
-
-            chartCtx.globalAlpha =
-                0.62;
 
 
             chartCtx.fillRect(
@@ -820,22 +951,117 @@ function drawMainChart(
     );
 
 
-    // CURRENT PRICE LINE
+    // ======================================
+    // SESSION MARKERS
+    // ======================================
+
+    visibleCandles.forEach(
+        (candle, index) => {
+
+            const hours =
+                candle.time.getHours();
+
+            const minutes =
+                candle.time.getMinutes();
+
+
+            const totalMinutes =
+                hours * 60 +
+                minutes;
+
+
+            const morningStart =
+                13 * 60;
+
+            const eveningStart =
+                19 * 60;
+
+
+            const isSessionStart =
+                totalMinutes ===
+                morningStart ||
+                totalMinutes ===
+                eveningStart;
+
+
+            if (!isSessionStart) {
+                return;
+            }
+
+
+            const x =
+                chartLeft +
+                step * index +
+                step / 2;
+
+
+            chartCtx.setLineDash(
+                [6, 5]
+            );
+
+
+            chartCtx.strokeStyle =
+                totalMinutes ===
+                morningStart
+                    ? "#647de8"
+                    : "#d28a45";
+
+
+            chartCtx.globalAlpha =
+                0.6;
+
+
+            chartCtx.beginPath();
+
+            chartCtx.moveTo(
+                x,
+                chartTop
+            );
+
+            chartCtx.lineTo(
+                x,
+                chartTop +
+                chartHeight
+            );
+
+            chartCtx.stroke();
+
+
+            chartCtx.globalAlpha =
+                1;
+
+            chartCtx.setLineDash([]);
+
+        }
+    );
+
+
+    // ======================================
+    // CURRENT PRICE
+    // ======================================
 
     const last =
-        candles[candles.length - 1];
+        candles[
+            candles.length - 1
+        ];
+
 
     if (last) {
 
         const y =
-            priceToY(last.close);
+            priceToY(
+                last.close
+            );
+
 
         chartCtx.strokeStyle =
-            "#707782";
+            "#777e89";
+
 
         chartCtx.setLineDash(
             [5, 4]
         );
+
 
         chartCtx.beginPath();
 
@@ -845,49 +1071,57 @@ function drawMainChart(
         );
 
         chartCtx.lineTo(
-            chartLeft + chartWidth,
+            chartLeft +
+            chartWidth,
             y
         );
 
         chartCtx.stroke();
 
+
         chartCtx.setLineDash([]);
 
 
-        // PRICE LABEL
-
         chartCtx.fillStyle =
-            "#20252c";
+            "#252a32";
+
 
         chartCtx.fillRect(
-            width - 62,
-            y - 9,
-            60,
-            18
+            width - 65,
+            y - 10,
+            64,
+            20
         );
 
+
         chartCtx.fillStyle =
-            "#e5e8ed";
+            "#e6e9ed";
+
 
         chartCtx.font =
             "10px Arial";
 
+
         chartCtx.fillText(
             last.close.toFixed(2),
-            width - 58,
+            width - 61,
             y + 4
         );
 
     }
 
 
-    // TIME LABELS
+    // ======================================
+    // TIME AXIS
+    // ======================================
 
     chartCtx.fillStyle =
         "#6f7681";
 
+
     chartCtx.font =
         "9px Arial";
+
 
     for (
         let i = 0;
@@ -898,443 +1132,110 @@ function drawMainChart(
         const candle =
             visibleCandles[i];
 
+
         if (!candle) {
             continue;
         }
+
 
         const x =
             chartLeft +
             step * i +
             step / 2;
 
+
         chartCtx.fillText(
-            formatTime(candle.time),
+            formatTime(
+                candle.time
+            ),
             x - 17,
             height - 8
         );
 
     }
 
-}
 
-
-// ==========================================
-// DRAW V SLOPE
-// ==========================================
-
-function drawSlopeChart(
-    slopeValues
-) {
-
-    const rect =
-        slopeCanvas.getBoundingClientRect();
-
-    const width =
-        rect.width;
-
-    const height =
-        rect.height;
-
-    slopeCtx.clearRect(
-        0,
-        0,
-        width,
-        height
-    );
-
-
-    slopeCtx.fillStyle =
-        "#101318";
-
-    slopeCtx.fillRect(
-        0,
-        0,
-        width,
-        height
-    );
-
+    // ======================================
+    // CROSSHAIR
+    // ======================================
 
     if (
-        !slopeValues ||
-        slopeValues.length === 0
-    ) {
-        return;
-    }
-
-
-    const visibleCount =
-        Math.min(
-            70,
-            slopeValues.length
-        );
-
-    const values =
-        slopeValues.slice(
-            slopeValues.length -
-            visibleCount
-        );
-
-
-    const left = 10;
-    const right = 65;
-    const top = 12;
-    const bottom = 12;
-
-    const plotWidth =
-        width -
-        left -
-        right;
-
-    const plotHeight =
-        height -
-        top -
-        bottom;
-
-
-    const neutral =
-        SETTINGS.vSlope.neutralZone;
-
-
-    let min =
-        -0.10;
-
-    let max =
-        0.10;
-
-
-    values.forEach(v => {
-
-        if (
-            v.value != null
-        ) {
-
-            min =
-                Math.min(
-                    min,
-                    v.value
-                );
-
-            max =
-                Math.max(
-                    max,
-                    v.value
-                );
-
-        }
-
-    });
-
-
-    const range =
-        Math.max(
-            0.10,
-            max - min
-        );
-
-    const center =
-        (max + min) / 2;
-
-    min =
-        center -
-        range * 0.65;
-
-    max =
-        center +
-        range * 0.65;
-
-
-    function valueToY(value) {
-
-        return top +
-            ((max - value) /
-            (max - min)) *
-            plotHeight;
-
-    }
-
-
-    // GRID / ZONES
-
-    const levels = [
-        {
-            value: neutral,
-            label: "+0.03"
-        },
-        {
-            value: 0,
-            label: "0"
-        },
-        {
-            value: -neutral,
-            label: "-0.03"
-        }
-    ];
-
-
-    levels.forEach(
-        level => {
-
-            const y =
-                valueToY(
-                    level.value
-                );
-
-
-            slopeCtx.strokeStyle =
-                "#30353d";
-
-            slopeCtx.setLineDash(
-                [5, 4]
-            );
-
-            slopeCtx.beginPath();
-
-            slopeCtx.moveTo(
-                left,
-                y
-            );
-
-            slopeCtx.lineTo(
-                left + plotWidth,
-                y
-            );
-
-            slopeCtx.stroke();
-
-            slopeCtx.setLineDash([]);
-
-
-            slopeCtx.fillStyle =
-                "#737a85";
-
-            slopeCtx.font =
-                "9px Arial";
-
-            slopeCtx.fillText(
-                level.label,
-                width - 48,
-                y + 3
-            );
-
-        }
-    );
-
-
-    // SLOPE LINE
-
-    const step =
-        plotWidth /
-        Math.max(
-            1,
-            visibleCount - 1
-        );
-
-
-    for (
-        let i = 1;
-        i < values.length;
-        i++
+        crosshair.active
     ) {
 
-        const previous =
-            values[i - 1];
+        const x =
+            crosshair.x;
 
-        const current =
-            values[i];
-
-
-        if (
-            previous.value == null ||
-            current.value == null
-        ) {
-            continue;
-        }
+        const y =
+            crosshair.y;
 
 
-        const x1 =
-            left +
-            step * (i - 1);
-
-        const x2 =
-            left +
-            step * i;
+        chartCtx.strokeStyle =
+            "#7b838e";
 
 
-        const y1 =
-            valueToY(
-                previous.value
-            );
-
-        const y2 =
-            valueToY(
-                current.value
-            );
-
-
-        let color =
-            "#6e8ee8";
-
-
-        if (
-            current.state ===
-            "BULLISH"
-        ) {
-
-            color =
-                "#43c982";
-
-        } else if (
-            current.state ===
-            "BEARISH"
-        ) {
-
-            color =
-                "#e05b63";
-
-        } else {
-
-            color =
-                "#6e8ee8";
-
-        }
-
-
-        slopeCtx.strokeStyle =
-            color;
-
-        slopeCtx.lineWidth = 2;
-
-
-        slopeCtx.beginPath();
-
-        slopeCtx.moveTo(
-            x1,
-            y1
+        chartCtx.setLineDash(
+            [4, 4]
         );
 
-        slopeCtx.lineTo(
-            x2,
-            y2
+
+        // vertical
+
+        chartCtx.beginPath();
+
+        chartCtx.moveTo(
+            x,
+            chartTop
         );
 
-        slopeCtx.stroke();
+        chartCtx.lineTo(
+            x,
+            chartTop +
+            chartHeight
+        );
+
+        chartCtx.stroke();
+
+
+        // horizontal
+
+        chartCtx.beginPath();
+
+        chartCtx.moveTo(
+            chartLeft,
+            y
+        );
+
+        chartCtx.lineTo(
+            chartLeft +
+            chartWidth,
+            y
+        );
+
+        chartCtx.stroke();
+
+
+        chartCtx.setLineDash([]);
 
     }
 
 
-    slopeCtx.lineWidth = 1;
+    return {
+
+        visibleCandles,
+
+        chartLeft,
+
+        chartTop,
+
+        chartWidth,
+
+        chartHeight,
+
+        step,
+
+        priceToY
+
+    };
 
 }
-
-
-// ==========================================
-// DRAW BOTH
-// ==========================================
-
-function drawCharts() {
-
-    const vcandles =
-        calculateVCandle(
-            candles,
-            SETTINGS.vCandle.smoothLen,
-            SETTINGS.vCandle.afterLen,
-            SETTINGS.vCandle.dojiThreshold
-        );
-
-
-    const slope =
-        calculateVSlope(
-            candles,
-            SETTINGS.vSlope.smoothLen,
-            SETTINGS.vSlope.afterLen,
-            SETTINGS.vSlope.slopeEMA,
-            SETTINGS.vSlope.neutralZone
-        );
-
-
-    drawMainChart(
-        vcandles
-    );
-
-    drawSlopeChart(
-        slope
-    );
-
-}
-
-
-// ==========================================
-// UPDATE EVERYTHING
-// ==========================================
-
-function updateTerminal() {
-
-    updateMarketUI();
-
-    updateVCandle();
-
-    updateVSlope();
-
-    updateVLOT();
-
-    drawCharts();
-
-}
-
-
-// ==========================================
-// NEW SIMULATED CANDLE
-// ==========================================
-
-function addNewCandle() {
-
-    candles.push(
-        createSimulatedCandle()
-    );
-
-
-    if (
-        candles.length > 300
-    ) {
-
-        candles.shift();
-
-    }
-
-
-    updateTerminal();
-
-}
-
-
-// ==========================================
-// START
-// ==========================================
-
-generateInitialHistory();
-
-
-// Give browser time to calculate dimensions.
-
-setTimeout(
-    () => {
-
-        resizeAll();
-
-        updateTerminal();
-
-    },
-    100
-);
-
-
-// Simulation tick.
-
-setInterval(
-    () => {
-
-        addNewCandle();
-
-    },
-    1500
-);
