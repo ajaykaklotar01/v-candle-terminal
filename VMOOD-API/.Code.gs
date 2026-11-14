@@ -151,43 +151,111 @@ function sendResponse(data, e) {
 
 
 function testVmoodOrderSetup() {
-  const props = PropertiesService.getScriptProperties();
+  const props = PropertiesService.getScriptProperties();
 
-  const ordersId = props.getProperty("ORDERS_SPREADSHEET_ID");
-  const menId = props.getProperty("MEN_DATABASE_ID");
-  const womenId = props.getProperty("WOMEN_DATABASE_ID");
-  const keyId = props.getProperty("RAZORPAY_KEY_ID");
-  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
+  const ordersId = props.getProperty("ORDERS_SPREADSHEET_ID");
+  const keyId = props.getProperty("RAZORPAY_KEY_ID");
+  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
 
-  const checks = {
-    ordersId: !!ordersId,
-    menId: !!menId,
-    womenId: !!womenId,
-    razorpayKeyId: !!keyId,
-    razorpaySecret: !!keySecret
-  };
+  if (!ordersId || !keyId || !keySecret) {
+    throw new Error(
+      "Missing Script Properties: ORDERS_SPREADSHEET_ID, RAZORPAY_KEY_ID, or RAZORPAY_KEY_SECRET."
+    );
+  }
 
-  if (Object.values(checks).some(value => !value)) {
-    throw new Error("One or more Script Properties are missing.");
-  }
+  const ordersSS = SpreadsheetApp.openById(ordersId);
+  const ordersSheet = ordersSS.getSheetByName("ORDERS");
 
-  const ss = SpreadsheetApp.openById(ordersId);
-  const sheet = ss.getSheetByName("ORDERS");
+  if (!ordersSheet) {
+    throw new Error('ORDERS tab not found. Check the tab name.');
+  }
 
-  if (!sheet) {
-    throw new Error('ORDERS tab not found. Check the tab name.');
-  }
+  if (ordersSheet.getLastColumn() < 17) {
+    throw new Error("ORDERS sheet must contain columns A:Q (17 columns).");
+  }
 
-  if (sheet.getLastColumn() < 17) {
-    throw new Error("ORDERS sheet must contain all 17 columns.");
-  }
+  const databaseChecks = [
+    { name: "MEN", id: VMOOD_DATABASES.MEN },
+    { name: "WOMEN", id: VMOOD_DATABASES.WOMEN }
+  ];
 
-  Logger.log("VMOOD ORDERS DATABASE CONNECTION SUCCESSFUL");
-  Logger.log("All five Script Properties are present.");
-  Logger.log("Orders sheet: " + sheet.getName());
-  Logger.log("Columns verified: " + sheet.getLastColumn());
+  databaseChecks.forEach(function(database) {
+    const databaseSS = SpreadsheetApp.openById(database.id);
+    const products = databaseSS.getSheetByName("PRODUCTS");
+    const variants = databaseSS.getSheetByName("VARIANTS");
+
+    if (!products || !variants) {
+      throw new Error(database.name + " database must contain PRODUCTS and VARIANTS tabs.");
+    }
+
+    const productHeaders = products.getRange(
+      1, 1, 1, products.getLastColumn()
+    ).getDisplayValues()[0].map(function(value) {
+      return String(value).trim();
+    });
+
+    ["SKU", "Product Name"].forEach(function(header) {
+      if (productHeaders.indexOf(header) === -1) {
+        throw new Error(database.name + " PRODUCTS is missing header: " + header);
+      }
+    });
+
+    const variantHeaders = variants.getRange(1, 1, 1, 5)
+      .getDisplayValues()[0].map(function(value) {
+        return String(value).trim();
+      });
+
+    ["SKU", "Option", "Old Price", "New Price", "Stock"].forEach(function(header, index) {
+      if (variantHeaders[index] !== header) {
+        throw new Error(
+          database.name + " VARIANTS column " + (index + 1) +
+          " must be: " + header
+        );
+      }
+    });
+
+    const markerHeader = String(
+      variants.getRange(1, 6).getDisplayValue()
+    ).trim();
+
+    if (
+      markerHeader !== "" &&
+      markerHeader !== "Last Deduction Payment ID"
+    ) {
+      throw new Error(
+        database.name + " VARIANTS column F must be blank or titled 'Last Deduction Payment ID'."
+      );
+    }
+
+    Logger.log(database.name + " database tabs and headers verified.");
+    Logger.log(database.name + " VARIANTS column F: " +
+      (markerHeader || "blank; code can add marker header later"));
+  });
+
+  const reservations = ordersSS.getSheetByName("RESERVATIONS");
+
+  if (reservations && reservations.getLastRow() > 0) {
+    const expectedHeaders = VMOOD_RESERVATION_HEADERS;
+    const actualHeaders = reservations.getRange(
+      1, 1, 1, expectedHeaders.length
+    ).getDisplayValues()[0];
+
+    expectedHeaders.forEach(function(header, index) {
+      if (String(actualHeaders[index]).trim() !== header) {
+        throw new Error(
+          "RESERVATIONS sheet header mismatch at column " + (index + 1)
+        );
+      }
+    });
+    Logger.log("RESERVATIONS headers verified.");
+  } else {
+    Logger.log("RESERVATIONS tab is not present yet; API will create it automatically.");
+  }
+
+  Logger.log("VMOOD ORDER DATABASE SETUP CHECK PASSED.");
+  Logger.log("Required Script Properties: ORDERS_SPREADSHEET_ID, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET.");
+  Logger.log("ORDERS columns checked: A:Q (" + ordersSheet.getLastColumn() + " used columns).");
 }
-
 
 
 function testVmoodRazorpayConnection() {
