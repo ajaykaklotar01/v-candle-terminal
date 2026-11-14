@@ -1596,13 +1596,13 @@ function findVmoodOrderRow_(sheet, razorpayOrderId) {
 function trackVmoodOrder_(body) {
 
   const orderId = String(body.orderId || "").trim();
-  const phone = String(body.phone || "").replace(/\\D/g, "");
+  const phone = String(body.phone || "").replace(/\D/g, "");
 
   if (!orderId || orderId.length > 50) {
     throw new Error("Please enter a valid order ID");
   }
 
-  if (!/^[6-9]\\d{9}$/.test(phone)) {
+  if (!/^[6-9]\d{9}$/.test(phone)) {
     throw new Error("Please enter a valid 10-digit mobile number");
   }
 
@@ -1635,7 +1635,7 @@ function trackVmoodOrder_(body) {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const savedOrderId = String(row[1] || "").trim();
-    const savedPhone = String(row[9] || "").replace(/\\D/g, "");
+    const savedPhone = String(row[9] || "").replace(/\D/g, "");
 
     if (savedOrderId === orderId && savedPhone === phone) {
       matchedOrder = row;
