@@ -337,9 +337,6 @@ if (action === "CANCEL_ORDER") {
 
 }
 
-‎
-
-‎ 
 ‎function testVmoodPostDeployment() {
 ‎  const url = ScriptApp.getService().getUrl();
 ‎
@@ -371,7 +368,6 @@ if (action === "CANCEL_ORDER") {
 ‎}
 ‎
 ‎
-‎
 ‎function diagnoseVmoodPost() {
 ‎  const url = ScriptApp.getService().getUrl();
 ‎
@@ -395,7 +391,7 @@ if (action === "CANCEL_ORDER") {
 ‎    response.getContentText().substring(0, 1000));
 ‎}
 ‎
-‎
+
 ‎function testVmoodProductionPost() {
 ‎  const url = "https://script.google.com/macros/s/AKfycbwMRO42QQiM1Sva4TKQmArV_ZuGxEwCwVOVA1xvHll97nhv-263-SRSCrcMMURkhESthw/exec";
 ‎
@@ -413,8 +409,6 @@ if (action === "CANCEL_ORDER") {
 ‎  Logger.log("RESPONSE: " + response.getContentText());
 ‎}
 
-
-‎‎
 
 // ==========================================
 // VMOOD SECURE RAZORPAY ORDER CREATION
@@ -886,9 +880,6 @@ function createVmoodRazorpayOrder_(body) {
 
   }
 }
-‎
-
-
 
 // ==========================================
 // VMOOD PART 9
@@ -896,7 +887,6 @@ function createVmoodRazorpayOrder_(body) {
 // + IDEMPOTENT STOCK DEDUCTION
 // + PAYMENT RECOVERY
 // ==========================================
-
 
 // ==========================================
 // MAIN PAYMENT VERIFICATION
@@ -933,7 +923,6 @@ function verifyVmoodPayment_(body) {
     throw new Error("Razorpay configuration missing");
   }
 
-
   // --------------------------------------
   // 1. VERIFY RAZORPAY SIGNATURE
   // --------------------------------------
@@ -960,7 +949,6 @@ function verifyVmoodPayment_(body) {
   ) {
     throw new Error("Invalid Razorpay payment signature");
   }
-
 
   // --------------------------------------
   // 2. VERIFY PAYMENT DIRECTLY WITH RAZORPAY
@@ -1005,7 +993,6 @@ function verifyVmoodPayment_(body) {
   if (payment.currency !== "INR") {
     throw new Error("Invalid payment currency");
   }
-
 
   // --------------------------------------
   // 3. LOCK PAYMENT PROCESSING
@@ -1106,7 +1093,6 @@ function verifyVmoodPayment_(body) {
       );
     }
 
-
     // --------------------------------------
     // 4. OPEN ORDERS SHEET
     // --------------------------------------
@@ -1189,7 +1175,6 @@ function verifyVmoodPayment_(body) {
       };
     }
 
-
     // --------------------------------------
     // 6. HANDLE CANCELLED / EXPIRED /
     //    MANUAL REVIEW RESERVATIONS
@@ -1250,7 +1235,6 @@ function verifyVmoodPayment_(body) {
       };
     }
 
-
     // --------------------------------------
     // 7. SELECT PRODUCT DATABASE
     // --------------------------------------
@@ -1274,7 +1258,6 @@ function verifyVmoodPayment_(body) {
     if (!currentOption) {
       throw new Error("Product size no longer exists");
     }
-
 
     // --------------------------------------
     // 8. CHECK STOCK DEDUCTION RECOVERY MARKER
@@ -1343,7 +1326,6 @@ function verifyVmoodPayment_(body) {
         );
       }
     }
-
 
     // --------------------------------------
     // 10. CHECK OTHER ACTIVE RESERVATIONS
@@ -1685,6 +1667,11 @@ function saveVmoodVerifiedOrder_(data) {
 // VARIANTS COLUMN F IS RESERVED FOR MARKER
 // ==========================================
 
+
+// ==========================================
+// HELPER: GET VARIANT STOCK + PAYMENT MARKER
+// ==========================================
+
 function getVmoodVariantStockState_(
   databaseId,
   sku,
@@ -1692,7 +1679,6 @@ function getVmoodVariantStockState_(
 ) {
 
   const ss = SpreadsheetApp.openById(databaseId);
-
   const sheet = ss.getSheetByName("VARIANTS");
 
   if (!sheet) {
@@ -1705,6 +1691,7 @@ function getVmoodVariantStockState_(
     throw new Error("No product variants found");
   }
 
+  // Column F stores the last deduction payment ID.
   const markerHeader = String(
     sheet.getRange(1, 6).getValue()
   ).trim();
@@ -1719,15 +1706,14 @@ function getVmoodVariantStockState_(
   ) {
 
     throw new Error(
-      "VARIANTS column F is already used. Please review the sheet."
+      "VARIANTS column F is already used"
     );
+
   }
 
   const headers = sheet.getRange(1, 1, 1, 5)
     .getValues()[0]
-    .map(function(value) {
-      return String(value).trim().toUpperCase();
-    });
+    .map(value => String(value).trim().toUpperCase());
 
   const skuColumn = headers.indexOf("SKU");
   const optionColumn = headers.indexOf("OPTION");
@@ -1736,9 +1722,11 @@ function getVmoodVariantStockState_(
   if (
     skuColumn < 0 ||
     optionColumn < 0 ||
-    stockColumn < 0
+    stockColumn !== 4
   ) {
-    throw new Error("VARIANTS headers are incorrect");
+    throw new Error(
+      "VARIANTS headers are incorrect. STOCK must be column E."
+    );
   }
 
   const rows = sheet.getRange(
@@ -1749,13 +1737,122 @@ function getVmoodVariantStockState_(
   ).getValues();
 
   let variantRow = null;
+  let stock = 0;
+  let lastPaymentId = "";
 
   for (let i = 0; i < rows.length; i++) {
 
-    if (
-      String(rows[i][skuColumn]).trim().toUpperCase() ===
-        sku.toUpperCase() &&
+    const rowSku = String(
+      rows[i][skuColumn] || ""
+    ).trim().toUpperCase();
 
+    const rowOption = String(
+      rows[i][optionColumn] || ""
+    ).trim().toUpperCase();
+
+    if (
+      rowSku === sku.toUpperCase() &&
+      rowOption === option.toUpperCase()
+    ) {
+
+      if (variantRow !== null) {
+        throw new Error(
+          "Duplicate product variant found"
+        );
+      }
+
+      variantRow = i + 2;
+      stock = Number(rows[i][stockColumn]);
+
+      lastPaymentId = String(
+        rows[i][5] || ""
+      ).trim();
+
+    }
+
+  }
+
+  if (variantRow === null) {
+    throw new Error("Product variant not found");
+  }
+
+  if (
+    !Number.isSafeInteger(stock) ||
+    stock < 0
+  ) {
+    throw new Error("Invalid variant stock");
+  }
+
+  return {
+    sheet: sheet,
+    row: variantRow,
+    stock: stock,
+    lastPaymentId: lastPaymentId
+  };
+
+}
+
+
+// ==========================================
+// HELPER: DEDUCT STOCK ONLY ONCE
+// ==========================================
+
+function deductVmoodStockOnce_(
+  databaseId,
+  sku,
+  option,
+  quantity,
+  paymentId
+) {
+
+  if (
+    !Number.isSafeInteger(quantity) ||
+    quantity < 1
+  ) {
+    throw new Error("Invalid stock deduction quantity");
+  }
+
+  if (!paymentId) {
+    throw new Error("Payment ID missing");
+  }
+
+  const state = getVmoodVariantStockState_(
+    databaseId,
+    sku,
+    option
+  );
+
+  // Prevent the same payment from deducting twice.
+  if (state.lastPaymentId === paymentId) {
+    return {
+      success: true,
+      alreadyDeducted: true
+    };
+  }
+
+  if (state.stock < quantity) {
+    throw new Error("Insufficient stock for deduction");
+  }
+
+  // Update stock and payment marker together.
+  state.sheet.getRange(
+    state.row,
+    5,
+    1,
+    2
+  ).setValues([[
+    state.stock - quantity,
+    paymentId
+  ]]);
+
+  SpreadsheetApp.flush();
+
+  return {
+    success: true,
+    alreadyDeducted: false
+  };
+
+}
 
 // ==========================================
 // VMOOD PART 11
