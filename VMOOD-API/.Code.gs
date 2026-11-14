@@ -227,6 +227,22 @@ function testVmoodOrderSetup() {
       );
     }
 
+    if (markerHeader === "" && variants.getLastRow() >= 2) {
+      const columnFValues = variants.getRange(
+        2, 6, variants.getLastRow() - 1, 1
+      ).getDisplayValues();
+
+      const columnFHasData = columnFValues.some(function(row) {
+        return String(row[0]).trim() !== "";
+      });
+
+      if (columnFHasData) {
+        throw new Error(
+          database.name + " VARIANTS column F contains data but has no marker header. Check this column before using stock deduction."
+        );
+      }
+    }
+
     Logger.log(database.name + " database tabs and headers verified.");
     Logger.log(database.name + " VARIANTS column F: " +
       (markerHeader || "blank; code can add marker header later"));
