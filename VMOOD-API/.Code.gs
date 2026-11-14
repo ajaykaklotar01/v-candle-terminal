@@ -170,9 +170,42 @@ function testVmoodOrderSetup() {
     throw new Error('ORDERS tab not found. Check the tab name.');
   }
 
-  if (ordersSheet.getLastColumn() < 17) {
+  const expectedOrderHeaders = [
+    "Created At",
+    "Order ID",
+    "SKU",
+    "Product Name",
+    "Size",
+    "Quantity",
+    "Unit Price",
+    "Total Amount",
+    "Customer Name",
+    "Phone",
+    "Email",
+    "Full Address",
+    "Razorpay Order ID",
+    "Razorpay Payment ID",
+    "Payment Status",
+    "Stock Deducted",
+    "Delivery Status"
+  ];
+
+  if (ordersSheet.getLastColumn() < expectedOrderHeaders.length) {
     throw new Error("ORDERS sheet must contain columns A:Q (17 columns).");
   }
+
+  const actualOrderHeaders = ordersSheet.getRange(
+    1, 1, 1, expectedOrderHeaders.length
+  ).getDisplayValues()[0];
+
+  expectedOrderHeaders.forEach(function(header, index) {
+    if (String(actualOrderHeaders[index]).trim() !== header) {
+      throw new Error(
+        "ORDERS sheet header mismatch at column " + (index + 1) +
+        ". Expected: " + header
+      );
+    }
+  });
 
   const databaseChecks = [
     { name: "MEN", id: VMOOD_DATABASES.MEN },
@@ -803,6 +836,15 @@ function createVmoodRazorpayOrder_(body) {
         ).trim().toUpperCase();
 
         if (
+          reservationStatus === "PROCESSING" &&
+          rowSku === sku &&
+          rowSize.toUpperCase() === option.toUpperCase()
+        ) {
+
+          // Keep stock reserved while a captured payment is being finalized.
+          reservedQuantity += rowQuantity;
+
+        } else if (
           reservationStatus === "PENDING" &&
           Number.isFinite(expiresAt) &&
           expiresAt <= now
