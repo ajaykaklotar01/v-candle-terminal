@@ -306,7 +306,19 @@ if (action === "CANCEL_ORDER") {
 }
 
     // --------------------------------------
-    // 4. UNKNOWN ACTION.
+    // 5. TRACK CUSTOMER ORDER
+    // --------------------------------------
+
+    if (action === "TRACK_ORDER") {
+
+      return vmoodPostResponse_(
+        trackVmoodOrder_(body)
+      );
+
+    }
+
+    // --------------------------------------
+    // 6. UNKNOWN ACTION.
     // --------------------------------------
     return vmoodPostResponse_({
       success: false,
