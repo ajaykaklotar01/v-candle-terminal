@@ -1151,8 +1151,7 @@ function verifyVmoodPayment_(body) {
     if (
       existingOrder &&
       String(existingOrder[13]) === razorpayPaymentId &&
-      String(existingOrder[16]).toUpperCase() === "TRUE" &&
-      String(existingOrder[15]).toUpperCase() === "CONFIRMED"
+      String(existingOrder[15]).toUpperCase() === "TRUE"
     ) {
 
       // Repair reservation if the previous execution
@@ -1170,7 +1169,7 @@ function verifyVmoodPayment_(body) {
         success: true,
         paymentVerified: true,
         orderId: existingOrder[1],
-        orderStatus: "CONFIRMED",
+        orderStatus: "PAID",
         message: "Payment already verified and order confirmed"
       };
     }
@@ -1213,7 +1212,7 @@ function verifyVmoodPayment_(body) {
         phone: phone,
         email: email,
         fullAddress: fullAddress,
-        orderStatus: "REVIEW_REQUIRED",
+        orderStatus: "PAID",
         stockDeducted: false
       });
 
@@ -1229,7 +1228,7 @@ function verifyVmoodPayment_(body) {
         success: true,
         paymentVerified: true,
         orderId: reviewOrderId,
-        orderStatus: "REVIEW_REQUIRED",
+        orderStatus: "PAID",
         message:
           "Payment received. This order requires manual review. Do not pay again."
       };
@@ -1274,7 +1273,7 @@ function verifyVmoodPayment_(body) {
 
     const orderAlreadyMarkedDeducted =
       existingOrder &&
-      String(existingOrder[16]).toUpperCase() === "TRUE";
+      String(existingOrder[15]).toUpperCase() === "TRUE";
 
     // If the marker or saved order confirms that stock
     // was already deducted, never deduct it again.
@@ -1392,7 +1391,7 @@ function verifyVmoodPayment_(body) {
           phone: phone,
           email: email,
           fullAddress: fullAddress,
-          orderStatus: "REVIEW_REQUIRED",
+          orderStatus: "PAID",
           stockDeducted: false
         });
 
@@ -1408,7 +1407,7 @@ function verifyVmoodPayment_(body) {
           success: true,
           paymentVerified: true,
           orderId: reviewOrderId,
-          orderStatus: "REVIEW_REQUIRED",
+          orderStatus: "PAID",
           message:
             "Payment received. Stock requires manual review. Do not pay again."
         };
@@ -1448,7 +1447,7 @@ function verifyVmoodPayment_(body) {
       phone: phone,
       email: email,
       fullAddress: fullAddress,
-      orderStatus: "STOCK_PENDING",
+      orderStatus: "PAID",
       stockDeducted: stockAlreadyDeducted
     });
 
@@ -1483,9 +1482,6 @@ function verifyVmoodPayment_(body) {
     }
 
     ordersSheet.getRange(orderRow, 16)
-      .setValue("CONFIRMED");
-
-    ordersSheet.getRange(orderRow, 17)
       .setValue(true);
 
     SpreadsheetApp.flush();
@@ -1507,7 +1503,7 @@ function verifyVmoodPayment_(body) {
       success: true,
       paymentVerified: true,
       orderId: orderId,
-      orderStatus: "CONFIRMED",
+      orderStatus: "PAID",
       message: "Payment successful. VMOOD order confirmed."
     };
 
@@ -1591,6 +1587,90 @@ function findVmoodOrderRow_(sheet, razorpayOrderId) {
 
   return null;
 }
+
+// ==========================================
+// TRACK CUSTOMER ORDER
+// ORDERS COLUMNS A-Q
+// ==========================================
+
+function trackVmoodOrder_(body) {
+
+  const orderId = String(body.orderId || "").trim();
+  const phone = String(body.phone || "").replace(/\\D/g, "");
+
+  if (!orderId || orderId.length > 50) {
+    throw new Error("Please enter a valid order ID");
+  }
+
+  if (!/^[6-9]\\d{9}$/.test(phone)) {
+    throw new Error("Please enter a valid 10-digit mobile number");
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty("ORDERS_SPREADSHEET_ID");
+
+  if (!spreadsheetId) {
+    throw new Error("Orders spreadsheet ID missing");
+  }
+
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const sheet = ss.getSheetByName("ORDERS");
+
+  if (!sheet || sheet.getLastColumn() < 17) {
+    throw new Error("ORDERS sheet is missing or incomplete");
+  }
+
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) {
+    return {
+      success: false,
+      message: "No matching order found. Check your order ID and mobile number."
+    };
+  }
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, 17).getValues();
+  let matchedOrder = null;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const savedOrderId = String(row[1] || "").trim();
+    const savedPhone = String(row[9] || "").replace(/\\D/g, "");
+
+    if (savedOrderId === orderId && savedPhone === phone) {
+      matchedOrder = row;
+      break;
+    }
+  }
+
+  if (!matchedOrder || String(matchedOrder[14] || "").trim().toUpperCase() !== "PAID") {
+    return {
+      success: false,
+      message: "No matching order found. Check your order ID and mobile number."
+    };
+  }
+
+  const deliveryStatus = String(matchedOrder[16] || "PROCESSING")
+    .trim()
+    .toUpperCase();
+
+  const allowedDeliveryStatuses = ["PROCESSING", "SHIPPED", "DELIVERED"];
+
+  return {
+    success: true,
+    order: {
+      orderId: String(matchedOrder[1]),
+      productName: String(matchedOrder[3] || ""),
+      size: String(matchedOrder[4] || ""),
+      paymentStatus: "PAID",
+      orderStatus: "PAID",
+      deliveryStatus: allowedDeliveryStatuses.includes(deliveryStatus)
+        ? deliveryStatus
+        : "PROCESSING"
+    }
+  };
+}
+
 
 
 // ==========================================
