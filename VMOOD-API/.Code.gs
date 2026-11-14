@@ -1,245 +1,245 @@
-‎
-‎// ==========================================
-‎// VMOOD PRODUCT DATABASE API
-‎// MEN + WOMEN GOOGLE SHEETS
-‎// ==========================================
-‎
-‎const VMOOD_DATABASES = {
-‎  MEN: "1jae-sXyqQWio36wEb7GYuf6qgtaE0lQUmSddqaH8MUM",
-‎  WOMEN: "1v2SoP_F3GBtH5QUdOsrMstU6PE3fjBZOZh3LnXF_T1k"
-‎};
-‎
-‎
-‎// MAIN API
-‎function doGet(e) {
-‎  try {
-‎    const sku = String(e.parameter.sku || "").trim();
-‎
-‎    if (!sku) {
-‎      return sendResponse({
-‎        success: false,
-‎        message: "SKU is required"
-‎      }, e);
-‎    }
-‎
-‎    let result = null;
-‎
-‎    if (sku.toUpperCase().startsWith("MP")) {
-‎      result = getProduct(VMOOD_DATABASES.MEN, sku);
-‎    } else if (sku.toUpperCase().startsWith("WP")) {
-‎      result = getProduct(VMOOD_DATABASES.WOMEN, sku);
-‎    } else {
-‎      return sendResponse({
-‎        success: false,
-‎        message: "Invalid SKU"
-‎      }, e);
-‎    }
-‎
-‎    if (!result) {
-‎      return sendResponse({
-‎        success: false,
-‎        message: "Product not found"
-‎      }, e);
-‎    }
-‎
-‎    return sendResponse({
-‎      success: true,
-‎      product: result
-‎    }, e);
-‎
-‎  } catch (error) {
-‎    return sendResponse({
-‎      success: false,
-‎      message: error.message
-‎    }, e);
-‎  }
-‎}
-‎
-‎
-‎// FETCH PRODUCT AND VARIANTS
-‎function getProduct(spreadsheetId, sku) {
-‎
-‎  const ss = SpreadsheetApp.openById(spreadsheetId);
-‎
-‎  const productSheet = ss.getSheetByName("PRODUCTS");
-‎  const variantSheet = ss.getSheetByName("VARIANTS");
-‎
-‎  if (!productSheet || !variantSheet) {
-‎    throw new Error("PRODUCTS or VARIANTS sheet missing");
-‎  }
-‎
-‎  const productRows = productSheet.getDataRange().getDisplayValues();
-‎  const variantRows = variantSheet.getDataRange().getDisplayValues();
-‎
-‎  const productHeaders = productRows[0].map(h => h.trim());
-‎
-‎  const productIndex = productHeaders.indexOf("SKU");
-‎
-‎  if (productIndex === -1) {
-‎    throw new Error("SKU column missing in PRODUCTS");
-‎  }
-‎
-‎  const productRow = productRows.slice(1).find(row =>
-‎    row[productIndex].trim().toUpperCase() === sku.toUpperCase()
-‎  );
-‎
-‎  if (!productRow) return null;
-‎
-‎  const product = {};
-‎
-‎  productHeaders.forEach((header, index) => {
-‎    product[header] = productRow[index];
-‎  });
-‎
-‎  const variantHeaders = variantRows[0].map(h => h.trim());
-‎
-‎  const variantSkuIndex = variantHeaders.indexOf("SKU");
-‎
-‎  if (variantSkuIndex === -1) {
-‎    throw new Error("SKU column missing in VARIANTS");
-‎  }
-‎
-‎  const variants = {};
-‎
-‎  variantRows.slice(1).forEach(row => {
-‎
-‎    if (row[variantSkuIndex].trim().toUpperCase() !== sku.toUpperCase()) {
-‎      return;
-‎    }
-‎
-‎    const data = {};
-‎
-‎    variantHeaders.forEach((header, index) => {
-‎      data[header] = row[index];
-‎    });
-‎
-‎    const option = data["Option"];
-‎
-‎    if (!option) return;
-‎
-‎    variants[option] = {
-‎      oldPrice: Number(data["Old Price"]),
-‎      newPrice: Number(data["New Price"]),
-‎      stock: Number(data["Stock"])
-‎    };
-‎
-‎  });
-‎
-‎  product.variants = variants;
-‎
-‎  return product;
-‎}
-‎
-‎
-‎// RESPONSE FORMAT
-‎function sendResponse(data, e) {
-‎
-‎  const callback = e.parameter.callback;
-‎
-‎  const json = JSON.stringify(data);
-‎
-‎  if (callback && /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(callback)) {
-‎    return ContentService
-‎      .createTextOutput(callback + "(" + json + ");")
-‎      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-‎  }
-‎
-‎  return ContentService
-‎    .createTextOutput(json)
-‎    .setMimeType(ContentService.MimeType.JSON);
-‎}
-‎
+
+// ==========================================
+// VMOOD PRODUCT DATABASE API
+// MEN + WOMEN GOOGLE SHEETS
+// ==========================================
+
+const VMOOD_DATABASES = {
+  MEN: "1jae-sXyqQWio36wEb7GYuf6qgtaE0lQUmSddqaH8MUM",
+  WOMEN: "1v2SoP_F3GBtH5QUdOsrMstU6PE3fjBZOZh3LnXF_T1k"
+};
+
+
+// MAIN API
+function doGet(e) {
+  try {
+    const sku = String(e.parameter.sku || "").trim();
+
+    if (!sku) {
+      return sendResponse({
+        success: false,
+        message: "SKU is required"
+      }, e);
+    }
+
+    let result = null;
+
+    if (sku.toUpperCase().startsWith("MP")) {
+      result = getProduct(VMOOD_DATABASES.MEN, sku);
+    } else if (sku.toUpperCase().startsWith("WP")) {
+      result = getProduct(VMOOD_DATABASES.WOMEN, sku);
+    } else {
+      return sendResponse({
+        success: false,
+        message: "Invalid SKU"
+      }, e);
+    }
+
+    if (!result) {
+      return sendResponse({
+        success: false,
+        message: "Product not found"
+      }, e);
+    }
+
+    return sendResponse({
+      success: true,
+      product: result
+    }, e);
+
+  } catch (error) {
+    return sendResponse({
+      success: false,
+      message: error.message
+    }, e);
+  }
+}
+
+
+// FETCH PRODUCT AND VARIANTS
+function getProduct(spreadsheetId, sku) {
+
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+
+  const productSheet = ss.getSheetByName("PRODUCTS");
+  const variantSheet = ss.getSheetByName("VARIANTS");
+
+  if (!productSheet || !variantSheet) {
+    throw new Error("PRODUCTS or VARIANTS sheet missing");
+  }
+
+  const productRows = productSheet.getDataRange().getDisplayValues();
+  const variantRows = variantSheet.getDataRange().getDisplayValues();
+
+  const productHeaders = productRows[0].map(h => h.trim());
+
+  const productIndex = productHeaders.indexOf("SKU");
+
+  if (productIndex === -1) {
+    throw new Error("SKU column missing in PRODUCTS");
+  }
+
+  const productRow = productRows.slice(1).find(row =>
+    row[productIndex].trim().toUpperCase() === sku.toUpperCase()
+  );
+
+  if (!productRow) return null;
+
+  const product = {};
+
+  productHeaders.forEach((header, index) => {
+    product[header] = productRow[index];
+  });
+
+  const variantHeaders = variantRows[0].map(h => h.trim());
+
+  const variantSkuIndex = variantHeaders.indexOf("SKU");
+
+  if (variantSkuIndex === -1) {
+    throw new Error("SKU column missing in VARIANTS");
+  }
+
+  const variants = {};
+
+  variantRows.slice(1).forEach(row => {
+
+    if (row[variantSkuIndex].trim().toUpperCase() !== sku.toUpperCase()) {
+      return;
+    }
+
+    const data = {};
+
+    variantHeaders.forEach((header, index) => {
+      data[header] = row[index];
+    });
+
+    const option = data["Option"];
+
+    if (!option) return;
+
+    variants[option] = {
+      oldPrice: Number(data["Old Price"]),
+      newPrice: Number(data["New Price"]),
+      stock: Number(data["Stock"])
+    };
+
+  });
+
+  product.variants = variants;
+
+  return product;
+}
+
+
+// RESPONSE FORMAT
+function sendResponse(data, e) {
+
+  const callback = e.parameter.callback;
+
+  const json = JSON.stringify(data);
+
+  if (callback && /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(callback)) {
+    return ContentService
+      .createTextOutput(callback + "(" + json + ");")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 
 function testVmoodOrderSetup() {
-‎  const props = PropertiesService.getScriptProperties();
-‎
-‎  const ordersId = props.getProperty("ORDERS_SPREADSHEET_ID");
-‎  const menId = props.getProperty("MEN_DATABASE_ID");
-‎  const womenId = props.getProperty("WOMEN_DATABASE_ID");
-‎  const keyId = props.getProperty("RAZORPAY_KEY_ID");
-‎  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
-‎
-‎  const checks = {
-‎    ordersId: !!ordersId,
-‎    menId: !!menId,
-‎    womenId: !!womenId,
-‎    razorpayKeyId: !!keyId,
-‎    razorpaySecret: !!keySecret
-‎  };
-‎
-‎  if (Object.values(checks).some(value => !value)) {
-‎    throw new Error("One or more Script Properties are missing.");
-‎  }
-‎
-‎  const ss = SpreadsheetApp.openById(ordersId);
-‎  const sheet = ss.getSheetByName("ORDERS");
-‎
-‎  if (!sheet) {
-‎    throw new Error('ORDERS tab not found. Check the tab name.');
-‎  }
-‎
-‎  if (sheet.getLastColumn() < 17) {
-‎    throw new Error("ORDERS sheet must contain all 17 columns.");
-‎  }
-‎
-‎  Logger.log("VMOOD ORDERS DATABASE CONNECTION SUCCESSFUL");
-‎  Logger.log("All five Script Properties are present.");
-‎  Logger.log("Orders sheet: " + sheet.getName());
-‎  Logger.log("Columns verified: " + sheet.getLastColumn());
-‎}
-‎
+  const props = PropertiesService.getScriptProperties();
+
+  const ordersId = props.getProperty("ORDERS_SPREADSHEET_ID");
+  const menId = props.getProperty("MEN_DATABASE_ID");
+  const womenId = props.getProperty("WOMEN_DATABASE_ID");
+  const keyId = props.getProperty("RAZORPAY_KEY_ID");
+  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
+
+  const checks = {
+    ordersId: !!ordersId,
+    menId: !!menId,
+    womenId: !!womenId,
+    razorpayKeyId: !!keyId,
+    razorpaySecret: !!keySecret
+  };
+
+  if (Object.values(checks).some(value => !value)) {
+    throw new Error("One or more Script Properties are missing.");
+  }
+
+  const ss = SpreadsheetApp.openById(ordersId);
+  const sheet = ss.getSheetByName("ORDERS");
+
+  if (!sheet) {
+    throw new Error('ORDERS tab not found. Check the tab name.');
+  }
+
+  if (sheet.getLastColumn() < 17) {
+    throw new Error("ORDERS sheet must contain all 17 columns.");
+  }
+
+  Logger.log("VMOOD ORDERS DATABASE CONNECTION SUCCESSFUL");
+  Logger.log("All five Script Properties are present.");
+  Logger.log("Orders sheet: " + sheet.getName());
+  Logger.log("Columns verified: " + sheet.getLastColumn());
+}
 
 
-‎function testVmoodRazorpayConnection() {
-‎  const props = PropertiesService.getScriptProperties();
-‎
-‎  const keyId = props.getProperty("RAZORPAY_KEY_ID");
-‎  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
-‎
-‎  if (!keyId || !keySecret) {
-‎    throw new Error("Razorpay credentials are missing.");
-‎  }
-‎
-‎  const url = "https://api.razorpay.com/v1/orders";
-‎
-‎  const payload = {
-‎    amount: 100,
-‎    currency: "INR",
-‎    receipt: "VMOOD_TEST_" + Date.now(),
-‎    notes: {
-‎      purpose: "VMOOD backend connection test"
-‎    }
-‎  };
-‎
-‎  const response = UrlFetchApp.fetch(url, {
-‎    method: "post",
-‎    contentType: "application/json",
-‎    headers: {
-‎      Authorization: "Basic " +
-‎        Utilities.base64Encode(keyId + ":" + keySecret)
-‎    },
-‎    payload: JSON.stringify(payload),
-‎    muteHttpExceptions: true
-‎  });
-‎
-‎  const result = JSON.parse(response.getContentText());
-‎
-‎  if (response.getResponseCode() !== 200) {
-‎    throw new Error(
-‎      "Razorpay test failed: " +
-‎      (result.error ? result.error.description : response.getContentText())
-‎    );
-‎  }
-‎
-‎  Logger.log("RAZORPAY CONNECTION SUCCESSFUL");
-‎  Logger.log("Test Order ID: " + result.id);
-‎  Logger.log("Currency: " + result.currency);
-‎  Logger.log("Amount: " + result.amount);
-‎  Logger.log("Status: " + result.status);
-‎}
-‎
-‎
-‎
+
+function testVmoodRazorpayConnection() {
+  const props = PropertiesService.getScriptProperties();
+
+  const keyId = props.getProperty("RAZORPAY_KEY_ID");
+  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
+
+  if (!keyId || !keySecret) {
+    throw new Error("Razorpay credentials are missing.");
+  }
+
+  const url = "https://api.razorpay.com/v1/orders";
+
+  const payload = {
+    amount: 100,
+    currency: "INR",
+    receipt: "VMOOD_TEST_" + Date.now(),
+    notes: {
+      purpose: "VMOOD backend connection test"
+    }
+  };
+
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      Authorization: "Basic " +
+        Utilities.base64Encode(keyId + ":" + keySecret)
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  const result = JSON.parse(response.getContentText());
+
+  if (response.getResponseCode() !== 200) {
+    throw new Error(
+      "Razorpay test failed: " +
+      (result.error ? result.error.description : response.getContentText())
+    );
+  }
+
+  Logger.log("RAZORPAY CONNECTION SUCCESSFUL");
+  Logger.log("Test Order ID: " + result.id);
+  Logger.log("Currency: " + result.currency);
+  Logger.log("Amount: " + result.amount);
+  Logger.log("Status: " + result.status);
+}
+
+
+
 
  // ==========================================
  // VMOOD PART 10 - UPDATED POST API ROUTER
@@ -337,77 +337,77 @@ if (action === "CANCEL_ORDER") {
 
 }
 
-‎function testVmoodPostDeployment() {
-‎  const url = ScriptApp.getService().getUrl();
-‎
-‎  if (!url) {
-‎    throw new Error("Web App URL not found. Check deployment.");
-‎  }
-‎
-‎  const response = UrlFetchApp.fetch(url, {
-‎    method: "post",
-‎    contentType: "text/plain",
-‎    payload: JSON.stringify({
-‎      action: "PING"
-‎    }),
-‎    followRedirects: true,
-‎    muteHttpExceptions: true
-‎  });
-‎
-‎  const status = response.getResponseCode();
-‎  const result = JSON.parse(response.getContentText());
-‎
-‎  if (status !== 200 || !result.success) {
-‎    throw new Error(
-‎      "POST test failed: " + response.getContentText()
-‎    );
-‎  }
-‎
-‎  Logger.log("VMOOD DEPLOYED POST API SUCCESSFUL");
-‎  Logger.log("Response: " + result.message);
-‎}
-‎
-‎
-‎function diagnoseVmoodPost() {
-‎  const url = ScriptApp.getService().getUrl();
-‎
-‎  Logger.log("WEB APP URL: " + url);
-‎
-‎  const response = UrlFetchApp.fetch(url, {
-‎    method: "post",
-‎    contentType: "text/plain",
-‎    payload: JSON.stringify({
-‎      action: "PING"
-‎    }),
-‎    followRedirects: false,
-‎    muteHttpExceptions: true
-‎  });
-‎
-‎  Logger.log("HTTP STATUS: " + response.getResponseCode());
-‎  Logger.log("RESPONSE HEADERS: " +
-‎    JSON.stringify(response.getAllHeaders()));
-‎
-‎  Logger.log("RESPONSE BODY: " +
-‎    response.getContentText().substring(0, 1000));
-‎}
-‎
+function testVmoodPostDeployment() {
+  const url = ScriptApp.getService().getUrl();
 
-‎function testVmoodProductionPost() {
-‎  const url = "https://script.google.com/macros/s/AKfycbwMRO42QQiM1Sva4TKQmArV_ZuGxEwCwVOVA1xvHll97nhv-263-SRSCrcMMURkhESthw/exec";
-‎
-‎  const response = UrlFetchApp.fetch(url, {
-‎    method: "post",
-‎    contentType: "text/plain",
-‎    payload: JSON.stringify({
-‎      action: "PING"
-‎    }),
-‎    followRedirects: true,
-‎    muteHttpExceptions: true
-‎  });
-‎
-‎  Logger.log("HTTP STATUS: " + response.getResponseCode());
-‎  Logger.log("RESPONSE: " + response.getContentText());
-‎}
+  if (!url) {
+    throw new Error("Web App URL not found. Check deployment.");
+  }
+
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "text/plain",
+    payload: JSON.stringify({
+      action: "PING"
+    }),
+    followRedirects: true,
+    muteHttpExceptions: true
+  });
+
+  const status = response.getResponseCode();
+  const result = JSON.parse(response.getContentText());
+
+  if (status !== 200 || !result.success) {
+    throw new Error(
+      "POST test failed: " + response.getContentText()
+    );
+  }
+
+  Logger.log("VMOOD DEPLOYED POST API SUCCESSFUL");
+  Logger.log("Response: " + result.message);
+}
+
+
+function diagnoseVmoodPost() {
+  const url = ScriptApp.getService().getUrl();
+
+  Logger.log("WEB APP URL: " + url);
+
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "text/plain",
+    payload: JSON.stringify({
+      action: "PING"
+    }),
+    followRedirects: false,
+    muteHttpExceptions: true
+  });
+
+  Logger.log("HTTP STATUS: " + response.getResponseCode());
+  Logger.log("RESPONSE HEADERS: " +
+    JSON.stringify(response.getAllHeaders()));
+
+  Logger.log("RESPONSE BODY: " +
+    response.getContentText().substring(0, 1000));
+}
+
+
+function testVmoodProductionPost() {
+  const url = ScriptApp.getService().getUrl();
+
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "text/plain",
+    payload: JSON.stringify({
+      action: "PING"
+    }),
+    followRedirects: true,
+    muteHttpExceptions: true
+  });
+
+  Logger.log("HTTP STATUS: " + response.getResponseCode());
+  Logger.log("RESPONSE: " + response.getContentText());
+}
 
 
 // ==========================================
