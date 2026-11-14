@@ -1598,8 +1598,8 @@ function findVmoodOrderRow_(sheet, razorpayOrderId) {
 // ORDERS COLUMNS A-Q
 // ==========================================
 
-function saveVmoodVerifiedOrder_(data) {
 
+function saveVmoodVerifiedOrder_(data) {
   const existingRow = findVmoodOrderRow_(
     data.ordersSheet,
     data.razorpayOrderId
@@ -1607,20 +1607,24 @@ function saveVmoodVerifiedOrder_(data) {
 
   let orderId;
   let createdAt;
+  let deliveryStatus = "PROCESSING";
 
   if (existingRow) {
-
     const existing = data.ordersSheet
-      .getRange(existingRow, 1, 1, 2)
+      .getRange(existingRow, 1, 1, 17)
       .getValues()[0];
 
-    orderId = existing[1] ||
-      "VMOOD-" + Date.now();
-
+    orderId = existing[1] || "VMOOD-" + Date.now();
     createdAt = existing[0] || new Date();
 
-  } else {
+    const previousStatus = String(
+      existing[16] || ""
+    ).trim().toUpperCase();
 
+    if (["PROCESSING", "SHIPPED", "DELIVERED"].includes(previousStatus)) {
+      deliveryStatus = previousStatus;
+    }
+  } else {
     orderId = "VMOOD-" + Date.now();
     createdAt = new Date();
   }
@@ -1641,18 +1645,15 @@ function saveVmoodVerifiedOrder_(data) {
     data.razorpayOrderId,
     data.razorpayPaymentId,
     "PAID",
-    data.orderStatus,
-    data.stockDeducted
+    data.stockDeducted,
+    deliveryStatus
   ];
 
   if (existingRow) {
-
     data.ordersSheet
       .getRange(existingRow, 1, 1, 17)
       .setValues([rowData]);
-
   } else {
-
     data.ordersSheet.appendRow(rowData);
   }
 
@@ -1660,6 +1661,7 @@ function saveVmoodVerifiedOrder_(data) {
 
   return orderId;
 }
+
 
 
 // ==========================================
