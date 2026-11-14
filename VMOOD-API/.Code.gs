@@ -1781,6 +1781,32 @@ function trackVmoodOrder_(body) {
     .toUpperCase();
 
   const allowedDeliveryStatuses = ["PROCESSING", "SHIPPED", "DELIVERED"];
+  const razorpayOrderId = String(matchedOrder[12] || "").trim();
+  const stockDeducted = matchedOrder[15] === true ||
+    String(matchedOrder[15]).trim().toUpperCase() === "TRUE";
+
+  let paymentMessage = "Payment verified successfully.";
+  if (!stockDeducted && razorpayOrderId) {
+    const reservationsSheet = getVmoodReservationsSheet_();
+    const reservationRow = findVmoodReservationRow_(
+      reservationsSheet,
+      razorpayOrderId
+    );
+
+    if (reservationRow) {
+      const reservationStatus = String(
+        reservationsSheet.getRange(reservationRow, 14).getDisplayValue()
+      ).trim().toUpperCase();
+
+      if (reservationStatus === "REVIEW_REQUIRED") {
+        paymentMessage =
+          "Payment received. This order requires manual review. Do not pay again.";
+      } else if (reservationStatus === "PROCESSING") {
+        paymentMessage =
+          "Payment received. Your order confirmation is being completed. Do not pay again.";
+      }
+    }
+  }
 
   return {
     success: true,
@@ -1792,7 +1818,8 @@ function trackVmoodOrder_(body) {
       orderStatus: "PAID",
       deliveryStatus: allowedDeliveryStatuses.includes(deliveryStatus)
         ? deliveryStatus
-        : "PROCESSING"
+        : "PROCESSING",
+      paymentMessage: paymentMessage
     }
   };
 }
