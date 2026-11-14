@@ -2211,7 +2211,7 @@ function cancelVmoodReservation_(body) {
 // CHECKS RAZORPAY DIRECTLY - NO CUSTOMER BROWSER NEEDED
 // ==========================================
 
-function recoverVmoodPayments_() {
+function recoverVmoodPayments() {
   const props = PropertiesService.getScriptProperties();
   const keyId = props.getProperty("RAZORPAY_KEY_ID");
   const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
@@ -2220,9 +2220,9 @@ function recoverVmoodPayments_() {
     throw new Error("Razorpay configuration missing");
   }
 
-  const lock = LockService.getScriptLock();
+  const lock = LockService.getUserLock();
   if (!lock.tryLock(1000)) {
-    return { success: true, skipped: true, message: "Another VMOOD payment task is running." };
+    return { success: true, skipped: true, message: "Another VMOOD recovery task is running." };
   }
 
   const summary = {
@@ -2373,8 +2373,8 @@ function recoverVmoodPayments_() {
 
 // Run once manually after deployment to install the automatic 5-minute check.
 // Running it again replaces the old trigger instead of creating duplicates.
-function installVmoodPaymentRecoveryTrigger_() {
-  const handler = "recoverVmoodPayments_";
+function installVmoodPaymentRecoveryTrigger() {
+  const handler = "recoverVmoodPayments";
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (trigger.getHandlerFunction() === handler) {
       ScriptApp.deleteTrigger(trigger);
