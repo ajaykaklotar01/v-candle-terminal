@@ -175,23 +175,22 @@ function testVmoodOrderSetup() {
     "Order ID",
     "SKU",
     "Product Name",
-    "Size",
+    "Option",
     "Quantity",
     "Unit Price",
     "Total Amount",
     "Customer Name",
     "Phone",
-    "Email",
     "Full Address",
+    "Delivery Status",
     "Razorpay Order ID",
     "Razorpay Payment ID",
     "Payment Status",
-    "Stock Deducted",
-    "Delivery Status"
+    "Stock Deducted"
   ];
 
   if (ordersSheet.getLastColumn() < expectedOrderHeaders.length) {
-    throw new Error("ORDERS sheet must contain columns A:Q (17 columns).");
+    throw new Error("ORDERS sheet must contain columns A:P (16 columns).");
   }
 
   const actualOrderHeaders = ordersSheet.getRange(
@@ -303,7 +302,7 @@ function testVmoodOrderSetup() {
 
   Logger.log("VMOOD ORDER DATABASE SETUP CHECK PASSED.");
   Logger.log("Required Script Properties: ORDERS_SPREADSHEET_ID, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET.");
-  Logger.log("ORDERS columns checked: A:Q (" + ordersSheet.getLastColumn() + " used columns).");
+  Logger.log("ORDERS columns checked: A:P (" + ordersSheet.getLastColumn() + " used columns).");
 }
 
 
@@ -546,7 +545,7 @@ const VMOOD_RESERVATION_HEADERS = [
   "Razorpay Order ID",
   "SKU",
   "Product Name",
-  "Size",
+  "Option",
   "Quantity",
   "Unit Price",
   "Amount Paise",
@@ -1238,7 +1237,7 @@ function verifyVmoodPayment_(body) {
 
     if (
       !ordersSheet ||
-      ordersSheet.getLastColumn() < 17
+      ordersSheet.getLastColumn() < 16
     ) {
       throw new Error("ORDERS sheet is missing or incomplete");
     }
@@ -1252,7 +1251,7 @@ function verifyVmoodPayment_(body) {
 
     if (orderRow) {
       existingOrder = ordersSheet
-        .getRange(orderRow, 1, 1, 17)
+        .getRange(orderRow, 1, 1, 16)
         .getValues()[0];
 
       const existingPaymentId = String(
@@ -1737,14 +1736,14 @@ function saveVmoodVerifiedOrder_(data) {
 
   if (existingRow) {
     const existing = data.ordersSheet
-      .getRange(existingRow, 1, 1, 17)
+      .getRange(existingRow, 1, 1, 16)
       .getValues()[0];
 
     orderId = existing[1] || "VMOOD-" + Date.now();
     createdAt = existing[0] || new Date();
 
     const previousStatus = String(
-      existing[16] || ""
+      existing[11] || ""
     ).trim().toUpperCase();
 
     if (["PROCESSING", "SHIPPED", "DELIVERED"].includes(previousStatus)) {
@@ -1766,18 +1765,17 @@ function saveVmoodVerifiedOrder_(data) {
     data.amount / 100,
     data.customerName,
     data.phone,
-    data.email,
     data.fullAddress,
+    deliveryStatus,
     data.razorpayOrderId,
     data.razorpayPaymentId,
     "PAID",
-    data.stockDeducted,
-    deliveryStatus
+    data.stockDeducted
   ];
 
   if (existingRow) {
     data.ordersSheet
-      .getRange(existingRow, 1, 1, 17)
+      .getRange(existingRow, 1, 1, 16)
       .setValues([rowData]);
   } else {
     data.ordersSheet.appendRow(rowData);
