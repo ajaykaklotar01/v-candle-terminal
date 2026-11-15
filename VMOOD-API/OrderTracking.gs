@@ -27,7 +27,7 @@ function trackVmoodOrder_(body) {
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const sheet = ss.getSheetByName("ORDERS");
 
-  if (!sheet || sheet.getLastColumn() < 17) {
+  if (!sheet || sheet.getLastColumn() < 16) {
     throw new Error("ORDERS sheet is missing or incomplete");
   }
 
@@ -40,7 +40,7 @@ function trackVmoodOrder_(body) {
     };
   }
 
-  const rows = sheet.getRange(2, 1, lastRow - 1, 17).getValues();
+  const rows = sheet.getRange(2, 1, lastRow - 1, 16).getValues();
   let matchedOrder = null;
 
   for (let i = 0; i < rows.length; i++) {
@@ -61,7 +61,7 @@ function trackVmoodOrder_(body) {
     };
   }
 
-  const deliveryStatus = String(matchedOrder[16] || "PROCESSING")
+  const deliveryStatus = String(matchedOrder[11] || "PROCESSING")
     .trim()
     .toUpperCase();
 
@@ -98,6 +98,7 @@ function trackVmoodOrder_(body) {
     order: {
       orderId: String(matchedOrder[1]),
       productName: String(matchedOrder[3] || ""),
+      option: String(matchedOrder[4] || ""),
       size: String(matchedOrder[4] || ""),
       paymentStatus: "PAID",
       orderStatus: "PAID",
