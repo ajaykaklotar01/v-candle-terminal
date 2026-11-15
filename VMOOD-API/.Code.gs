@@ -624,7 +624,7 @@ function createVmoodRazorpayOrder_(body) {
     .trim()
     .toUpperCase();
 
-  const size = String(body.size || "").trim();
+  const size = String(body.option || body.size || "").trim();
 
   const quantity = Number(body.quantity);
 
@@ -637,7 +637,7 @@ function createVmoodRazorpayOrder_(body) {
   }
 
   if (!size || size.length > 20) {
-    throw new Error("Invalid product size");
+    throw new Error("Invalid product option");
   }
 
   if (
@@ -824,7 +824,7 @@ function createVmoodRazorpayOrder_(body) {
 
         const rowSku = String(row[1] || "").trim();
 
-        const rowSize = String(row[3] || "").trim();
+        const rowOption = String(row[3] || "").trim();
 
         const rowQuantity = Number(row[4]);
 
@@ -837,7 +837,7 @@ function createVmoodRazorpayOrder_(body) {
         if (
           reservationStatus === "PROCESSING" &&
           rowSku === sku &&
-          rowSize.toUpperCase() === option.toUpperCase()
+          rowOption.toUpperCase() === option.toUpperCase
         ) {
 
           // Keep stock reserved while a captured payment is being finalized.
@@ -858,7 +858,7 @@ function createVmoodRazorpayOrder_(body) {
           Number.isFinite(expiresAt) &&
           expiresAt > now &&
           rowSku === sku &&
-          rowSize.toUpperCase() === option.toUpperCase()
+          rowOption.toUpperCase() === option.toUpperCase
         ) {
 
           reservedQuantity += rowQuantity;
@@ -1380,7 +1380,7 @@ function verifyVmoodPayment_(body) {
     });
 
     if (!currentOption) {
-      throw new Error("Product size no longer exists");
+      throw new Error("Product option no longer exists");
     }
 
     // --------------------------------------
@@ -1432,7 +1432,7 @@ function verifyVmoodPayment_(body) {
       const otherSku = String(other[1] || "")
         .trim()
         .toUpperCase();
-      const otherSize = String(other[3] || "")
+      const otherOption = String(other[3] || "")
         .trim()
         .toUpperCase();
       const otherStatus = String(other[13] || "")
@@ -1442,7 +1442,7 @@ function verifyVmoodPayment_(body) {
       if (
         otherOrderId !== razorpayOrderId &&
         otherSku === sku &&
-        otherSize === currentOption.toUpperCase() &&
+        otherOption === currentOption.toUpperCase &&
         otherStatus === "PROCESSING"
       ) {
         throw new Error(
@@ -1715,12 +1715,12 @@ function findVmoodOrderRow_(sheet, razorpayOrderId) {
 
 // ==========================================
 // TRACK CUSTOMER ORDER
-// ORDERS COLUMNS A-Q
+// ORDERS COLUMNS A-P
 // ==========================================
 
 // ==========================================
 // HELPER: SAVE VERIFIED ORDER
-// ORDERS COLUMNS A-Q
+// ORDERS COLUMNS A-P
 // ==========================================
 
 
