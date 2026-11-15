@@ -5,148 +5,148 @@
 // ==========================================
 
 const VMOOD_DATABASES = {
-  MEN: "1jae-sXyqQWio36wEb7GYuf6qgtaE0lQUmSddqaH8MUM",
-  WOMEN: "1v2SoP_F3GBtH5QUdOsrMstU6PE3fjBZOZh3LnXF_T1k"
+  MEN: "1jae-sXyqQWio36wEb7GYuf6qgtaE0lQUmSddqaH8MUM",
+  WOMEN: "1v2SoP_F3GBtH5QUdOsrMstU6PE3fjBZOZh3LnXF_T1k"
 };
 
 
 // MAIN API
 function doGet(e) {
-  try {
-    const sku = String(e.parameter.sku || "").trim();
+  try {
+    const sku = String(e.parameter.sku || "").trim();
 
-    if (!sku) {
-      return sendResponse({
-        success: false,
-        message: "SKU is required"
-      }, e);
-    }
+    if (!sku) {
+      return sendResponse({
+        success: false,
+        message: "SKU is required"
+      }, e);
+    }
 
-    let result = null;
+    let result = null;
 
-    if (sku.toUpperCase().startsWith("MP")) {
-      result = getProduct(VMOOD_DATABASES.MEN, sku);
-    } else if (sku.toUpperCase().startsWith("WP")) {
-      result = getProduct(VMOOD_DATABASES.WOMEN, sku);
-    } else {
-      return sendResponse({
-        success: false,
-        message: "Invalid SKU"
-      }, e);
-    }
+    if (sku.toUpperCase().startsWith("MP")) {
+      result = getProduct(VMOOD_DATABASES.MEN, sku);
+    } else if (sku.toUpperCase().startsWith("WP")) {
+      result = getProduct(VMOOD_DATABASES.WOMEN, sku);
+    } else {
+      return sendResponse({
+        success: false,
+        message: "Invalid SKU"
+      }, e);
+    }
 
-    if (!result) {
-      return sendResponse({
-        success: false,
-        message: "Product not found"
-      }, e);
-    }
+    if (!result) {
+      return sendResponse({
+        success: false,
+        message: "Product not found"
+      }, e);
+    }
 
-    return sendResponse({
-      success: true,
-      product: result
-    }, e);
+    return sendResponse({
+      success: true,
+      product: result
+    }, e);
 
-  } catch (error) {
-    return sendResponse({
-      success: false,
-      message: error.message
-    }, e);
-  }
+  } catch (error) {
+    return sendResponse({
+      success: false,
+      message: error.message
+    }, e);
+  }
 }
 
 
 // FETCH PRODUCT AND VARIANTS
 function getProduct(spreadsheetId, sku) {
 
-  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const ss = SpreadsheetApp.openById(spreadsheetId);
 
-  const productSheet = ss.getSheetByName("PRODUCTS");
-  const variantSheet = ss.getSheetByName("VARIANTS");
+  const productSheet = ss.getSheetByName("PRODUCTS");
+  const variantSheet = ss.getSheetByName("VARIANTS");
 
-  if (!productSheet || !variantSheet) {
-    throw new Error("PRODUCTS or VARIANTS sheet missing");
-  }
+  if (!productSheet || !variantSheet) {
+    throw new Error("PRODUCTS or VARIANTS sheet missing");
+  }
 
-  const productRows = productSheet.getDataRange().getDisplayValues();
-  const variantRows = variantSheet.getDataRange().getDisplayValues();
+  const productRows = productSheet.getDataRange().getDisplayValues();
+  const variantRows = variantSheet.getDataRange().getDisplayValues();
 
-  const productHeaders = productRows[0].map(h => h.trim());
+  const productHeaders = productRows[0].map(h => h.trim());
 
-  const productIndex = productHeaders.indexOf("SKU");
+  const productIndex = productHeaders.indexOf("SKU");
 
-  if (productIndex === -1) {
-    throw new Error("SKU column missing in PRODUCTS");
-  }
+  if (productIndex === -1) {
+    throw new Error("SKU column missing in PRODUCTS");
+  }
 
-  const productRow = productRows.slice(1).find(row =>
-    row[productIndex].trim().toUpperCase() === sku.toUpperCase()
-  );
+  const productRow = productRows.slice(1).find(row =>
+    row[productIndex].trim().toUpperCase() === sku.toUpperCase()
+  );
 
-  if (!productRow) return null;
+  if (!productRow) return null;
 
-  const product = {};
+  const product = {};
 
-  productHeaders.forEach((header, index) => {
-    product[header] = productRow[index];
-  });
+  productHeaders.forEach((header, index) => {
+    product[header] = productRow[index];
+  });
 
-  const variantHeaders = variantRows[0].map(h => h.trim());
+  const variantHeaders = variantRows[0].map(h => h.trim());
 
-  const variantSkuIndex = variantHeaders.indexOf("SKU");
+  const variantSkuIndex = variantHeaders.indexOf("SKU");
 
-  if (variantSkuIndex === -1) {
-    throw new Error("SKU column missing in VARIANTS");
-  }
+  if (variantSkuIndex === -1) {
+    throw new Error("SKU column missing in VARIANTS");
+  }
 
-  const variants = {};
+  const variants = {};
 
-  variantRows.slice(1).forEach(row => {
+  variantRows.slice(1).forEach(row => {
 
-    if (row[variantSkuIndex].trim().toUpperCase() !== sku.toUpperCase()) {
-      return;
-    }
+    if (row[variantSkuIndex].trim().toUpperCase() !== sku.toUpperCase()) {
+      return;
+    }
 
-    const data = {};
+    const data = {};
 
-    variantHeaders.forEach((header, index) => {
-      data[header] = row[index];
-    });
+    variantHeaders.forEach((header, index) => {
+      data[header] = row[index];
+    });
 
-    const option = data["Option"];
+    const option = data["Option"];
 
-    if (!option) return;
+    if (!option) return;
 
-    variants[option] = {
-      oldPrice: Number(data["Old Price"]),
-      newPrice: Number(data["New Price"]),
-      stock: Number(data["Stock"])
-    };
+    variants[option] = {
+      oldPrice: Number(data["Old Price"]),
+      newPrice: Number(data["New Price"]),
+      stock: Number(data["Stock"])
+    };
 
-  });
+  });
 
-  product.variants = variants;
+  product.variants = variants;
 
-  return product;
+  return product;
 }
 
 
 // RESPONSE FORMAT
 function sendResponse(data, e) {
 
-  const callback = e.parameter.callback;
+  const callback = e.parameter.callback;
 
-  const json = JSON.stringify(data);
+  const json = JSON.stringify(data);
 
-  if (callback && /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(callback)) {
-    return ContentService
-      .createTextOutput(callback + "(" + json + ");")
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
+  if (callback && /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(callback)) {
+    return ContentService
+      .createTextOutput(callback + "(" + json + ");")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
 
-  return ContentService
-    .createTextOutput(json)
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 
@@ -308,51 +308,51 @@ function testVmoodOrderSetup() {
 
 
 function testVmoodRazorpayConnection() {
-  const props = PropertiesService.getScriptProperties();
+  const props = PropertiesService.getScriptProperties();
 
-  const keyId = props.getProperty("RAZORPAY_KEY_ID");
-  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
+  const keyId = props.getProperty("RAZORPAY_KEY_ID");
+  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
 
-  if (!keyId || !keySecret) {
-    throw new Error("Razorpay credentials are missing.");
-  }
+  if (!keyId || !keySecret) {
+    throw new Error("Razorpay credentials are missing.");
+  }
 
-  const url = "https://api.razorpay.com/v1/orders";
+  const url = "https://api.razorpay.com/v1/orders";
 
-  const payload = {
-    amount: 100,
-    currency: "INR",
-    receipt: "VMOOD_TEST_" + Date.now(),
-    notes: {
-      purpose: "VMOOD backend connection test"
-    }
-  };
+  const payload = {
+    amount: 100,
+    currency: "INR",
+    receipt: "VMOOD_TEST_" + Date.now(),
+    notes: {
+      purpose: "VMOOD backend connection test"
+    }
+  };
 
-  const response = UrlFetchApp.fetch(url, {
-    method: "post",
-    contentType: "application/json",
-    headers: {
-      Authorization: "Basic " +
-        Utilities.base64Encode(keyId + ":" + keySecret)
-    },
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  });
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      Authorization: "Basic " +
+        Utilities.base64Encode(keyId + ":" + keySecret)
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
 
-  const result = JSON.parse(response.getContentText());
+  const result = JSON.parse(response.getContentText());
 
-  if (response.getResponseCode() !== 200) {
-    throw new Error(
-      "Razorpay test failed: " +
-      (result.error ? result.error.description : response.getContentText())
-    );
-  }
+  if (response.getResponseCode() !== 200) {
+    throw new Error(
+      "Razorpay test failed: " +
+      (result.error ? result.error.description : response.getContentText())
+    );
+  }
 
-  Logger.log("RAZORPAY CONNECTION SUCCESSFUL");
-  Logger.log("Test Order ID: " + result.id);
-  Logger.log("Currency: " + result.currency);
-  Logger.log("Amount: " + result.amount);
-  Logger.log("Status: " + result.status);
+  Logger.log("RAZORPAY CONNECTION SUCCESSFUL");
+  Logger.log("Test Order ID: " + result.id);
+  Logger.log("Currency: " + result.currency);
+  Logger.log("Amount: " + result.amount);
+  Logger.log("Status: " + result.status);
 }
 
 
@@ -455,75 +455,75 @@ if (action === "CANCEL_ORDER") {
 }
 
 function testVmoodPostDeployment() {
-  const url = ScriptApp.getService().getUrl();
+  const url = ScriptApp.getService().getUrl();
 
-  if (!url) {
-    throw new Error("Web App URL not found. Check deployment.");
-  }
+  if (!url) {
+    throw new Error("Web App URL not found. Check deployment.");
+  }
 
-  const response = UrlFetchApp.fetch(url, {
-    method: "post",
-    contentType: "text/plain",
-    payload: JSON.stringify({
-      action: "PING"
-    }),
-    followRedirects: true,
-    muteHttpExceptions: true
-  });
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "text/plain",
+    payload: JSON.stringify({
+      action: "PING"
+    }),
+    followRedirects: true,
+    muteHttpExceptions: true
+  });
 
-  const status = response.getResponseCode();
-  const result = JSON.parse(response.getContentText());
+  const status = response.getResponseCode();
+  const result = JSON.parse(response.getContentText());
 
-  if (status !== 200 || !result.success) {
-    throw new Error(
-      "POST test failed: " + response.getContentText()
-    );
-  }
+  if (status !== 200 || !result.success) {
+    throw new Error(
+      "POST test failed: " + response.getContentText()
+    );
+  }
 
-  Logger.log("VMOOD DEPLOYED POST API SUCCESSFUL");
-  Logger.log("Response: " + result.message);
+  Logger.log("VMOOD DEPLOYED POST API SUCCESSFUL");
+  Logger.log("Response: " + result.message);
 }
 
 
 function diagnoseVmoodPost() {
-  const url = ScriptApp.getService().getUrl();
+  const url = ScriptApp.getService().getUrl();
 
-  Logger.log("WEB APP URL: " + url);
+  Logger.log("WEB APP URL: " + url);
 
-  const response = UrlFetchApp.fetch(url, {
-    method: "post",
-    contentType: "text/plain",
-    payload: JSON.stringify({
-      action: "PING"
-    }),
-    followRedirects: false,
-    muteHttpExceptions: true
-  });
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "text/plain",
+    payload: JSON.stringify({
+      action: "PING"
+    }),
+    followRedirects: false,
+    muteHttpExceptions: true
+  });
 
-  Logger.log("HTTP STATUS: " + response.getResponseCode());
-  Logger.log("RESPONSE HEADERS: " +
-    JSON.stringify(response.getAllHeaders()));
+  Logger.log("HTTP STATUS: " + response.getResponseCode());
+  Logger.log("RESPONSE HEADERS: " +
+    JSON.stringify(response.getAllHeaders()));
 
-  Logger.log("RESPONSE BODY: " +
-    response.getContentText().substring(0, 1000));
+  Logger.log("RESPONSE BODY: " +
+    response.getContentText().substring(0, 1000));
 }
 
 
 function testVmoodProductionPost() {
-  const url = ScriptApp.getService().getUrl();
+  const url = ScriptApp.getService().getUrl();
 
-  const response = UrlFetchApp.fetch(url, {
-    method: "post",
-    contentType: "text/plain",
-    payload: JSON.stringify({
-      action: "PING"
-    }),
-    followRedirects: true,
-    muteHttpExceptions: true
-  });
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "text/plain",
+    payload: JSON.stringify({
+      action: "PING"
+    }),
+    followRedirects: true,
+    muteHttpExceptions: true
+  });
 
-  Logger.log("HTTP STATUS: " + response.getResponseCode());
-  Logger.log("RESPONSE: " + response.getContentText());
+  Logger.log("HTTP STATUS: " + response.getResponseCode());
+  Logger.log("RESPONSE: " + response.getContentText());
 }
 
 
