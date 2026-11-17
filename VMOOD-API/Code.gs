@@ -107,6 +107,38 @@ if (action === "CANCEL_ORDER") {
   );
 }
 
+    // --------------------------------------
+    // 5. TRACK CUSTOMER ORDER
+    // --------------------------------------
+
+    if (action === "TRACK_ORDER") {
+
+      return vmoodPostResponse_(
+        trackVmoodOrder_(body)
+      );
+
+    }
+
+    // --------------------------------------
+    // 6. UNKNOWN ACTION.
+    // --------------------------------------
+    return vmoodPostResponse_({
+      success: false,
+      message: "Unknown API action"
+    });
+
+
+  } catch (error) {
+
+    return vmoodPostResponse_({
+      success: false,
+      message: error.message || "VMOOD API error"
+    });
+
+  }
+
+}
+
 function testVmoodPostDeployment() {
   const url = ScriptApp.getService().getUrl();
 
