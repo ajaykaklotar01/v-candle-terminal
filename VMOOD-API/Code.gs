@@ -140,7 +140,7 @@ if (action === "CANCEL_ORDER") {
 }
 
 function testVmoodPostDeployment() {
-  const url = ScriptApp.getService().getUrl();
+  const url = "https://script.google.com/macros/s/AKfycbxYD0NSy7bcNlWRutvt4zgQWL8_lRbC1wSW_KgqkiyzK6Dd3mGn3uq1ODB6rqFs_ndcVA/exec";
 
   if (!url) {
     throw new Error("Web App URL not found. Check deployment.");
