@@ -69,6 +69,35 @@ function testVmoodRazorpayConnection() {
   Logger.log("Status: " + result.status);
 }
 
+
+function testVmoodCreateOrderOnce() {
+  // Run ONCE: creates a Razorpay TEST order and an internal 15-minute reservation.
+  // No payment is made and stock is not deducted.
+  const url = "https://script.google.com/macros/s/AKfycbxYD0NSy7bcNlWRutvt4zgQWL8_lRbC1wSW_KgqkiyzK6Dd3mGn3uq1ODB6rqFs_ndcVA/exec";
+  const payload = {
+    action: "CREATE_ORDER",
+    sku: "MP0001",
+    option: "S",
+    quantity: 1,
+    customerName: "VMOOD Test Customer",
+    phone: "9876543210",
+    email: "test@example.com",
+    street: "VMOOD Test Address - Not For Delivery",
+    city: "Surat",
+    state: "Gujarat",
+    pincode: "395004"
+  };
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "text/plain",
+    payload: JSON.stringify(payload),
+    followRedirects: true,
+    muteHttpExceptions: true
+  });
+  Logger.log("HTTP STATUS: " + response.getResponseCode());
+  Logger.log("CREATE ORDER RESPONSE: " + response.getContentText());
+}
+
 function getVmoodReservationsSheet_() {
 
   const props = PropertiesService.getScriptProperties();
