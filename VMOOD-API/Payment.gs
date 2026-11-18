@@ -392,9 +392,6 @@ function createVmoodRazorpayOrder_(body) {
       amount: amount,
       currency: "INR",
       receipt: receipt,
-      expire_by: Math.floor(
-        expiresAt.getTime() / 1000
-      ),
       notes: {
         sku: sku,
         size: option,
