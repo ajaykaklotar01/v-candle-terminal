@@ -287,6 +287,11 @@ function verifyVmoodPayment_(body) {
     // --------------------------------------
     // 6. HANDLE CANCELLED / EXPIRED /
     //    MANUAL REVIEW RESERVATIONS
+    // REVIEW_REQUIRED is intentionally allowed to continue
+    // into the normal stock validation below. A captured,
+    // amount-matched payment must be reconciled against the
+    // full reserved quantity; insufficient stock still goes
+    // to REVIEW_REQUIRED in the stock check below.
     // --------------------------------------
 
     const expiryTime = new Date(
@@ -300,7 +305,6 @@ function verifyVmoodPayment_(body) {
     if (
       reservationStatus === "CANCELLED" ||
       reservationStatus === "EXPIRED" ||
-      reservationStatus === "REVIEW_REQUIRED" ||
       (
         reservationStatus === "PENDING" &&
         reservationExpired
