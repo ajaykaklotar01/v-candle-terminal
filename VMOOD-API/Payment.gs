@@ -412,7 +412,7 @@ function createVmoodRazorpayOrder_(body) {
     const createdAt = new Date();
 
     const expiresAt = new Date(
-      now + (15 * 60 * 1000)
+      now + (10 * 60 * 1000)
     );
 
     const receipt = "VM" + now;
@@ -520,7 +520,7 @@ function createVmoodRazorpayOrder_(body) {
 
       productName: product["Product Name"],
 
-      reservationMinutes: 15
+      reservationMinutes: 10
     };
 
   } finally {
@@ -664,17 +664,17 @@ function cancelVmoodReservation_(body) {
     }
 
     // No captured or authorized payment.
-    // Release the pending reservation.
+    // Mark the reservation EXPIRED and release its stock hold.
 
     sheet.getRange(row, 14)
-      .setValue("CANCELLED");
+      .setValue("EXPIRED");
 
     SpreadsheetApp.flush();
 
     return {
       success: true,
-      reservationStatus: "CANCELLED",
-      message: "Reservation cancelled successfully"
+      reservationStatus: "EXPIRED",
+      message: "Reservation expired and stock released"
     };
 
   } finally {
