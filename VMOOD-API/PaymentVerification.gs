@@ -426,7 +426,7 @@ function verifyVmoodPayment_(body) {
       if (
         otherOrderId !== razorpayOrderId &&
         otherSku === sku &&
-        otherOption === currentOption.toUpperCase &&
+        otherOption === currentOption.toUpperCase() &&
         otherStatus === "PROCESSING"
       ) {
         throw new Error(
