@@ -84,7 +84,10 @@ function createVmoodRazorpayOrder_(body) {
     if (!Number.isSafeInteger(stock) || stock < 0) throw new Error("Invalid product stock");
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error("Invalid product price");
     if (stock <= 3) throw new Error("This option is currently unavailable");
-    if (quantity > stock) throw new Error("Only " + stock + " unit(s) are currently available");
+    const maxPurchasable = stock - 3;
+    if (quantity > maxPurchasable) {
+      throw new Error("You can buy a maximum of " + maxPurchasable + " unit(s). 3 units are kept in reserve.");
+    }
 
     const amount = Math.round(unitPrice * quantity * 100);
     if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error("Invalid order amount");
