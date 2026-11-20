@@ -156,8 +156,8 @@ function deductVmoodStockOnce_(
     };
   }
 
-  if (state.stock < quantity) {
-    throw new Error("Insufficient stock for deduction");
+  if (state.stock - quantity < 3) {
+    throw new Error("Stock deduction would use the protected 3-unit reserve");
   }
 
   // Update stock and payment marker together.
