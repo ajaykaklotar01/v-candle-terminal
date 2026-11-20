@@ -117,6 +117,22 @@ function verifyVmoodPayment_(body) {
       orderRow = sheet.getLastRow();
     }
 
+    // Keep deductions for one variant sequential. If an earlier payment is still
+    // PROCESSING, let its retry resolve the stock marker before another payment deducts.
+    const lastRow = sheet.getLastRow();
+    const orderRows = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 16).getValues() : [];
+    for (let i = 0; i < orderRows.length; i++) {
+      const other = orderRows[i];
+      if (i + 2 === orderRow) continue;
+      if (String(other[2] || "").trim().toUpperCase() === sku &&
+          String(other[4] || "").trim().toUpperCase() === currentOption.toUpperCase() &&
+          String(other[15] || "").trim().toUpperCase() === "PROCESSING") {
+        sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
+        SpreadsheetApp.flush();
+        return vmoodStockReviewResponse_(orderId, "Another paid order for this option is still being updated.");
+      }
+    }
+
     // If an earlier attempt completed the stock write but failed before updating ORDERS,
     // the payment marker prevents a second deduction.
     const stockState = getVmoodVariantStockState_(databaseId, sku, currentOption);
