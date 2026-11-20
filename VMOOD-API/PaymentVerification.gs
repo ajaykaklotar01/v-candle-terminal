@@ -1,723 +1,182 @@
 // ==========================================
-// VMOOD PAYMENT VERIFICATION + ORDER FINALIZATION
-// Razorpay verification + paid order + stock handling
+// VMOOD PAYMENT VERIFICATION + STOCK UPDATE
+// Uses ORDERS as the single order record
 // ==========================================
 
 function verifyVmoodPayment_(body) {
-
-  const razorpayOrderId = String(
-    body.razorpay_order_id || ""
-  ).trim();
-
-  const razorpayPaymentId = String(
-    body.razorpay_payment_id || ""
-  ).trim();
-
-  const razorpaySignature = String(
-    body.razorpay_signature || ""
-  ).trim();
-
-  if (
-    !razorpayOrderId ||
-    !razorpayPaymentId ||
-    !razorpaySignature
-  ) {
+  const razorpayOrderId = String(body.razorpay_order_id || "").trim();
+  const razorpayPaymentId = String(body.razorpay_payment_id || "").trim();
+  const razorpaySignature = String(body.razorpay_signature || "").trim();
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
     throw new Error("Payment verification details missing");
   }
 
   const props = PropertiesService.getScriptProperties();
-
   const keyId = props.getProperty("RAZORPAY_KEY_ID");
   const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
+  if (!keyId || !keySecret) throw new Error("Razorpay configuration missing");
 
-  if (!keyId || !keySecret) {
-    throw new Error("Razorpay configuration missing");
-  }
-
-  // --------------------------------------
-  // 1. VERIFY RAZORPAY SIGNATURE
-  // --------------------------------------
-
-  const signatureMessage =
-    razorpayOrderId + "|" + razorpayPaymentId;
-
-  const expectedSignature = Utilities
-    .computeHmacSha256Signature(
-      signatureMessage,
-      keySecret
-    )
-    .map(function(byte) {
-      return ("0" + ((byte + 256) % 256).toString(16))
-        .slice(-2);
-    })
-    .join("");
-
-  if (
-    !vmoodConstantTimeCompare_(
-      expectedSignature,
-      razorpaySignature.toLowerCase()
-    )
-  ) {
+  const expectedSignature = Utilities.computeHmacSha256Signature(
+    razorpayOrderId + "|" + razorpayPaymentId, keySecret
+  ).map(function(byte) {
+    return ("0" + ((byte + 256) % 256).toString(16)).slice(-2);
+  }).join("");
+  if (!vmoodConstantTimeCompare_(expectedSignature, razorpaySignature.toLowerCase())) {
     throw new Error("Invalid Razorpay payment signature");
   }
 
-  // --------------------------------------
-  // 2. VERIFY PAYMENT DIRECTLY WITH RAZORPAY
-  // --------------------------------------
-
   const paymentResponse = UrlFetchApp.fetch(
-    "https://api.razorpay.com/v1/payments/" +
-      encodeURIComponent(razorpayPaymentId),
+    "https://api.razorpay.com/v1/payments/" + encodeURIComponent(razorpayPaymentId),
     {
       method: "get",
-      headers: {
-        Authorization: "Basic " +
-          Utilities.base64Encode(keyId + ":" + keySecret)
-      },
+      headers: { Authorization: "Basic " + Utilities.base64Encode(keyId + ":" + keySecret) },
       muteHttpExceptions: true
     }
   );
-
   if (paymentResponse.getResponseCode() !== 200) {
-    throw new Error("Unable to verify payment with Razorpay");
+    throw new Error("Unable to verify payment with Razorpay. Please do not pay again.");
   }
 
-  const payment = JSON.parse(
-    paymentResponse.getContentText()
-  );
-
-  if (payment.id !== razorpayPaymentId) {
-    throw new Error("Payment ID mismatch");
+  const payment = JSON.parse(paymentResponse.getContentText());
+  if (payment.id !== razorpayPaymentId || payment.order_id !== razorpayOrderId) {
+    throw new Error("Razorpay payment details do not match this order");
   }
-
-  if (payment.order_id !== razorpayOrderId) {
-    throw new Error("Razorpay order ID mismatch");
-  }
-
   if (payment.status !== "captured") {
-    throw new Error(
-      "Payment is not captured. Current status: " +
-      payment.status
-    );
+    throw new Error("Payment is not captured. Current status: " + payment.status);
   }
-
-  if (payment.currency !== "INR") {
-    throw new Error("Invalid payment currency");
-  }
-
-  // --------------------------------------
-  // 3. LOCK PAYMENT PROCESSING
-  // --------------------------------------
+  if (payment.currency !== "INR") throw new Error("Invalid payment currency");
 
   const lock = LockService.getScriptLock();
-
   lock.waitLock(20000);
-
   try {
+    const sheet = getVmoodOrdersSheet_();
+    const orderRow = findVmoodOrderRow_(sheet, razorpayOrderId);
+    if (!orderRow) throw new Error("Order record not found. Contact VMOOD and do not pay again.");
 
-    const reservationsSheet =
-      getVmoodReservationsSheet_();
+    const row = sheet.getRange(orderRow, 1, 1, 16).getValues()[0];
+    const orderId = String(row[1] || "");
+    const sku = String(row[2] || "").trim().toUpperCase();
+    const option = String(row[4] || "").trim();
+    const quantity = Number(row[5]);
+    const unitPrice = Number(row[6]);
+    const totalAmount = Number(row[7]);
+    const savedPaymentId = String(row[13] || "").trim();
+    const stockStatus = String(row[15]).trim().toUpperCase();
 
-    const reservationRow =
-      findVmoodReservationRow_(
-        reservationsSheet,
-        razorpayOrderId
-      );
-
-    if (!reservationRow) {
-      throw new Error("Reservation not found");
+    if (savedPaymentId && savedPaymentId !== razorpayPaymentId) {
+      throw new Error("A different payment is already linked to this order");
+    }
+    if (!/^(MP|WP)[A-Z0-9_-]+$/.test(sku) || !option ||
+        !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 20 ||
+        !Number.isFinite(unitPrice) || unitPrice <= 0 ||
+        !Number.isFinite(totalAmount) || totalAmount <= 0) {
+      throw new Error("Saved order details are invalid");
+    }
+    if (Math.round(totalAmount * 100) !== Number(payment.amount) ||
+        Math.round(unitPrice * quantity * 100) !== Math.round(totalAmount * 100)) {
+      throw new Error("Payment amount does not match the saved order");
     }
 
-    const reservation = reservationsSheet
-      .getRange(
-        reservationRow,
-        1,
-        1,
-        VMOOD_RESERVATION_HEADERS.length
-      )
-      .getValues()[0];
+    // Persist payment success before attempting stock work.
+    sheet.getRange(orderRow, 14, 1, 2).setValues([[razorpayPaymentId, "PAID"]]);
+    SpreadsheetApp.flush();
 
-    const sku = String(reservation[1] || "")
-      .trim()
-      .toUpperCase();
-
-    const productName = String(reservation[2] || "");
-    const size = String(reservation[3] || "").trim();
-    const quantity = Number(reservation[4]);
-    const unitPrice = Number(reservation[5]);
-    const expectedAmount = Number(reservation[6]);
-
-    const customerName = String(reservation[7] || "");
-    const phone = String(reservation[8] || "");
-    const email = String(reservation[9] || "");
-    const fullAddress = String(reservation[10] || "");
-
-    const reservationStatus = String(
-      reservation[13] || ""
-    ).trim().toUpperCase();
-
-    const storedPaymentId = String(
-      reservation[14] || ""
-    ).trim();
-
-    if (
-      !/^(MP|WP)[A-Z0-9_-]+$/.test(sku) ||
-      !size ||
-      !Number.isSafeInteger(quantity) ||
-      quantity < 1 ||
-      quantity > 20 ||
-      !Number.isFinite(unitPrice) ||
-      unitPrice <= 0
-    ) {
-      throw new Error("Invalid reservation details");
-    }
-
-    if (
-      !Number.isSafeInteger(expectedAmount) ||
-      expectedAmount <= 0 ||
-      payment.amount !== expectedAmount
-    ) {
-      throw new Error("Payment amount does not match order");
-    }
-
-    if (
-      Math.round(unitPrice * quantity * 100) !==
-      expectedAmount
-    ) {
-      throw new Error("Reservation amount mismatch");
-    }
-
-    if (
-      !customerName ||
-      !phone ||
-      !fullAddress
-    ) {
-      throw new Error("Customer details missing from reservation");
-    }
-
-    if (
-      storedPaymentId &&
-      storedPaymentId !== razorpayPaymentId
-    ) {
-      throw new Error(
-        "A different payment is already linked to this reservation"
-      );
-    }
-
-    // --------------------------------------
-    // 4. OPEN ORDERS SHEET
-    // --------------------------------------
-
-    const ordersSpreadsheetId =
-      props.getProperty("ORDERS_SPREADSHEET_ID");
-
-    if (!ordersSpreadsheetId) {
-      throw new Error("Orders spreadsheet ID missing");
-    }
-
-    const ordersSS = SpreadsheetApp.openById(
-      ordersSpreadsheetId
-    );
-
-    const ordersSheet = ordersSS.getSheetByName("ORDERS");
-
-    if (
-      !ordersSheet ||
-      ordersSheet.getLastColumn() < 16
-    ) {
-      throw new Error("ORDERS sheet is missing or incomplete");
-    }
-
-    let orderRow = findVmoodOrderRow_(
-      ordersSheet,
-      razorpayOrderId
-    );
-
-    let existingOrder = null;
-
-    if (orderRow) {
-      existingOrder = ordersSheet
-        .getRange(orderRow, 1, 1, 16)
-        .getValues()[0];
-
-      const existingPaymentId = String(
-        existingOrder[13] || ""
-      );
-
-      if (
-        existingPaymentId &&
-        existingPaymentId !== razorpayPaymentId
-      ) {
-        throw new Error(
-          "A different payment is already linked to this order"
-        );
-      }
-    }
-
-    // --------------------------------------
-    // 5. REPAIR ALREADY CONFIRMED ORDER
-    // --------------------------------------
-
-    if (
-      existingOrder &&
-      String(existingOrder[13]) === razorpayPaymentId &&
-      String(existingOrder[15]).toUpperCase() === "TRUE"
-    ) {
-
-      // Repair reservation if the previous execution
-      // stopped before updating its final status.
-
-      reservationsSheet.getRange(reservationRow, 14)
-        .setValue("PAID");
-
-      reservationsSheet.getRange(reservationRow, 15)
-        .setValue(razorpayPaymentId);
-
-      SpreadsheetApp.flush();
-
+    if (stockStatus === "TRUE") {
       return {
-        success: true,
-        paymentVerified: true,
-        orderId: existingOrder[1],
-        orderStatus: "PAID",
-        message: "Payment already verified and order confirmed"
+        success: true, paymentVerified: true, stockDeducted: true,
+        orderId: orderId, orderStatus: "PAID",
+        message: "Payment successful. Your VMOOD order is confirmed."
       };
     }
 
-    // --------------------------------------
-    // 6. HANDLE CANCELLED / EXPIRED /
-    //    MANUAL REVIEW RESERVATIONS
-    // REVIEW_REQUIRED is intentionally allowed to continue
-    // into the normal stock validation below. A captured,
-    // amount-matched payment must be reconciled against the
-    // full reserved quantity; insufficient stock still goes
-    // to REVIEW_REQUIRED in the stock check below.
-    // --------------------------------------
-
-    const expiryTime = new Date(
-      reservation[12]
-    ).getTime();
-
-    const reservationExpired =
-      Number.isFinite(expiryTime) &&
-      expiryTime <= Date.now();
-
-    if (
-      reservationStatus === "CANCELLED" ||
-      reservationStatus === "EXPIRED" ||
-      (
-        reservationStatus === "PENDING" &&
-        reservationExpired
-      )
-    ) {
-
-      const reviewOrderId = saveVmoodVerifiedOrder_({
-        ordersSheet: ordersSheet,
-        orderRow: orderRow,
-        razorpayOrderId: razorpayOrderId,
-        razorpayPaymentId: razorpayPaymentId,
-        sku: sku,
-        productName: productName,
-        size: size,
-        quantity: quantity,
-        unitPrice: unitPrice,
-        amount: expectedAmount,
-        customerName: customerName,
-        phone: phone,
-        email: email,
-        fullAddress: fullAddress,
-        orderStatus: "PAID",
-        stockDeducted: false
-      });
-
-      reservationsSheet.getRange(reservationRow, 14)
-        .setValue("REVIEW_REQUIRED");
-
-      reservationsSheet.getRange(reservationRow, 15)
-        .setValue(razorpayPaymentId);
-
-      SpreadsheetApp.flush();
-
-      return {
-        success: true,
-        paymentVerified: true,
-        orderId: reviewOrderId,
-        orderStatus: "PAID",
-        message:
-          "Payment received. This order requires manual review. Do not pay again."
-      };
-    }
-
-    // --------------------------------------
-    // 7. SELECT PRODUCT DATABASE
-    // --------------------------------------
-
-    const databaseId = sku.startsWith("MP")
-      ? VMOOD_DATABASES.MEN
-      : VMOOD_DATABASES.WOMEN;
-
+    const databaseId = sku.startsWith("MP") ? VMOOD_DATABASES.MEN : VMOOD_DATABASES.WOMEN;
     const product = getProduct(databaseId, sku);
-
     if (!product) {
-      throw new Error("Product no longer exists");
+      sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
+      SpreadsheetApp.flush();
+      return vmoodStockReviewResponse_(orderId, "Product details need a manual stock check.");
     }
 
-    const currentOption = Object.keys(
-      product.variants || {}
-    ).find(function(option) {
-      return option.toUpperCase() === size.toUpperCase();
+    const currentOption = Object.keys(product.variants || {}).find(function(key) {
+      return key.trim().toUpperCase() === option.toUpperCase();
     });
-
     if (!currentOption) {
-      throw new Error("Product option no longer exists");
+      sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
+      SpreadsheetApp.flush();
+      return vmoodStockReviewResponse_(orderId, "The selected option needs a manual stock check.");
     }
 
-    // --------------------------------------
-    // 8. CHECK STOCK DEDUCTION RECOVERY MARKER
-    // --------------------------------------
+    const stockState = getVmoodVariantStockState_(databaseId, sku, currentOption);
 
-    const stockState = getVmoodVariantStockState_(
-      databaseId,
-      sku,
-      currentOption
-    );
-
-    const markerAlreadyMatches =
-      stockState.lastPaymentId === razorpayPaymentId;
-
-    const orderAlreadyMarkedDeducted =
-      existingOrder &&
-      String(existingOrder[15]).toUpperCase() === "TRUE";
-
-    // If the marker or saved order confirms that stock
-    // was already deducted, never deduct it again.
-
-    const stockAlreadyDeducted =
-      markerAlreadyMatches || orderAlreadyMarkedDeducted;
-
-    // --------------------------------------
-    // 9. PREVENT ANOTHER UNFINISHED
-    //    DEDUCTION FOR SAME VARIANT
-    // --------------------------------------
-
-    const lastReservationRow =
-      reservationsSheet.getLastRow();
-
-    const allReservations = lastReservationRow >= 2
-      ? reservationsSheet.getRange(
-          2,
-          1,
-          lastReservationRow - 1,
-          VMOOD_RESERVATION_HEADERS.length
-        ).getValues()
-      : [];
-
-    for (let i = 0; i < allReservations.length; i++) {
-
-      const other = allReservations[i];
-
-      const otherOrderId = String(other[0] || "");
-      const otherSku = String(other[1] || "")
-        .trim()
-        .toUpperCase();
-      const otherOption = String(other[3] || "")
-        .trim()
-        .toUpperCase();
-      const otherStatus = String(other[13] || "")
-        .trim()
-        .toUpperCase();
-
-      if (
-        otherOrderId !== razorpayOrderId &&
-        otherSku === sku &&
-        otherOption === currentOption.toUpperCase() &&
-        otherStatus === "PROCESSING"
-      ) {
-        throw new Error(
-          "Another payment is being processed for this size. Retry shortly."
-        );
-      }
+    // A matching marker proves that this payment's stock change already happened.
+    if (stockState.lastPaymentId === razorpayPaymentId) {
+      sheet.getRange(orderRow, 16).setValue(true);
+      SpreadsheetApp.flush();
+      return {
+        success: true, paymentVerified: true, stockDeducted: true,
+        orderId: orderId, orderStatus: "PAID",
+        message: "Payment verified. Stock update was already completed."
+      };
     }
 
-    // --------------------------------------
-    // 10. CHECK OTHER ACTIVE RESERVATIONS
-    // --------------------------------------
-
-    let otherReserved = 0;
-
-    const now = Date.now();
-
-    for (let i = 0; i < allReservations.length; i++) {
-
-      const other = allReservations[i];
-
-      if (
-        String(other[0]) === razorpayOrderId ||
-        String(other[1] || "").trim().toUpperCase() !== sku ||
-        String(other[3] || "").trim().toUpperCase() !==
-          currentOption.toUpperCase() ||
-        String(other[13] || "").trim().toUpperCase() !== "PENDING"
-      ) {
-        continue;
-      }
-
-      const otherExpiry = new Date(other[12]).getTime();
-
-      if (
-        Number.isFinite(otherExpiry) &&
-        otherExpiry > now
-      ) {
-        otherReserved += Number(other[4]) || 0;
-      } else {
-        // Expired pending reservations no longer reserve stock.
-        const sheetRow = i + 2;
-
-        reservationsSheet.getRange(sheetRow, 14)
-          .setValue("EXPIRED");
-      }
-    }
-
-    // --------------------------------------
-    // 11. CHECK STOCK ONLY IF NOT ALREADY
-    //     DEDUCTED
-    // --------------------------------------
-
-    if (!stockAlreadyDeducted) {
-
-      if (
-        stockState.stock - otherReserved < quantity
-      ) {
-
-        const reviewOrderId = saveVmoodVerifiedOrder_({
-          ordersSheet: ordersSheet,
-          orderRow: orderRow,
-          razorpayOrderId: razorpayOrderId,
-          razorpayPaymentId: razorpayPaymentId,
-          sku: sku,
-          productName: productName,
-          size: size,
-          quantity: quantity,
-          unitPrice: unitPrice,
-          amount: expectedAmount,
-          customerName: customerName,
-          phone: phone,
-          email: email,
-          fullAddress: fullAddress,
-          orderStatus: "PAID",
-          stockDeducted: false
-        });
-
-        reservationsSheet.getRange(reservationRow, 14)
-          .setValue("REVIEW_REQUIRED");
-
-        reservationsSheet.getRange(reservationRow, 15)
-          .setValue(razorpayPaymentId);
-
+    // Do not let a second payment alter this variant while an earlier deduction is unresolved.
+    const lastRow = sheet.getLastRow();
+    const allRows = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 16).getValues() : [];
+    for (let i = 0; i < allRows.length; i++) {
+      const other = allRows[i];
+      if (i + 2 === orderRow) continue;
+      if (String(other[2] || "").trim().toUpperCase() === sku &&
+          String(other[4] || "").trim().toUpperCase() === currentOption.toUpperCase() &&
+          String(other[15] || "").trim().toUpperCase() === "PROCESSING") {
+        sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
         SpreadsheetApp.flush();
-
-        return {
-          success: true,
-          paymentVerified: true,
-          orderId: reviewOrderId,
-          orderStatus: "PAID",
-          message:
-            "Payment received. Stock requires manual review. Do not pay again."
-        };
+        return vmoodStockReviewResponse_(orderId, "Another stock update for this option is being reconciled.");
       }
     }
 
-    // --------------------------------------
-    // 12. MARK RESERVATION PROCESSING
-    // --------------------------------------
-
-    reservationsSheet.getRange(reservationRow, 14)
-      .setValue("PROCESSING");
-
-    reservationsSheet.getRange(reservationRow, 15)
-      .setValue(razorpayPaymentId);
-
-    SpreadsheetApp.flush();
-
-    // --------------------------------------
-    // 13. SAVE PAID ORDER BEFORE STOCK UPDATE
-    // --------------------------------------
-
-    const orderId = saveVmoodVerifiedOrder_({
-      ordersSheet: ordersSheet,
-      orderRow: orderRow,
-      razorpayOrderId: razorpayOrderId,
-      razorpayPaymentId: razorpayPaymentId,
-      sku: sku,
-      productName: productName,
-      size: currentOption,
-      quantity: quantity,
-      unitPrice: unitPrice,
-      amount: expectedAmount,
-      customerName: customerName,
-      phone: phone,
-      email: email,
-      fullAddress: fullAddress,
-      orderStatus: "PAID",
-      stockDeducted: stockAlreadyDeducted
-    });
-
-    // --------------------------------------
-    // 14. DEDUCT STOCK ONLY IF NEEDED
-    // --------------------------------------
-
-    if (!stockAlreadyDeducted) {
-
-      deductVmoodStockOnce_(
-        databaseId,
-        sku,
-        currentOption,
-        quantity,
-        razorpayPaymentId
-      );
+    if (stockState.stock < quantity) {
+      sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
+      SpreadsheetApp.flush();
+      return vmoodStockReviewResponse_(orderId, "Payment received, but available stock needs a manual check.");
     }
 
-    // --------------------------------------
-    // 15. CONFIRM ORDER
-    // --------------------------------------
-
-    orderRow = findVmoodOrderRow_(
-      ordersSheet,
-      razorpayOrderId
-    );
-
-    if (!orderRow) {
-      throw new Error("Saved order could not be found");
+    // Mark PROCESSING before stock is changed. A retry checks the payment marker first.
+    sheet.getRange(orderRow, 16).setValue("PROCESSING");
+    SpreadsheetApp.flush();
+    try {
+      deductVmoodStockOnce_(databaseId, sku, currentOption, quantity, razorpayPaymentId);
+      sheet.getRange(orderRow, 16).setValue(true);
+      SpreadsheetApp.flush();
+    } catch (stockError) {
+      sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
+      SpreadsheetApp.flush();
+      return vmoodStockReviewResponse_(orderId, "Payment received. Stock update needs reconciliation.");
     }
-
-    ordersSheet.getRange(orderRow, 16)
-      .setValue(true);
-
-    SpreadsheetApp.flush();
-
-    // --------------------------------------
-    // 16. FINALIZE RESERVATION
-    // --------------------------------------
-
-    reservationsSheet.getRange(reservationRow, 14)
-      .setValue("PAID");
-
-    reservationsSheet.getRange(reservationRow, 15)
-      .setValue(razorpayPaymentId);
-
-    SpreadsheetApp.flush();
 
     return {
-      success: true,
-      paymentVerified: true,
-      orderId: orderId,
-      orderStatus: "PAID",
-      message: "Payment successful. VMOOD order confirmed."
+      success: true, paymentVerified: true, stockDeducted: true,
+      orderId: orderId, orderStatus: "PAID",
+      message: "Payment successful. Your VMOOD order is confirmed."
     };
-
   } finally {
-
     lock.releaseLock();
-
   }
+}
+
+function vmoodStockReviewResponse_(orderId, detail) {
+  return {
+    success: true,
+    paymentVerified: true,
+    stockDeducted: false,
+    orderId: orderId,
+    orderStatus: "PAID",
+    message: "Payment received. " + detail + " VMOOD will resolve the order. Do not pay again."
+  };
 }
 
 function vmoodConstantTimeCompare_(a, b) {
-
-  if (
-    typeof a !== "string" ||
-    typeof b !== "string" ||
-    a.length !== b.length
-  ) {
-    return false;
-  }
-
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
   let difference = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-
+  for (let i = 0; i < a.length; i++) difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return difference === 0;
-}
-
-function findVmoodOrderRow_(sheet, razorpayOrderId) {
-
-  const lastRow = sheet.getLastRow();
-
-  if (lastRow < 2) {
-    return null;
-  }
-
-  const ids = sheet.getRange(2, 13, lastRow - 1, 1)
-    .getValues();
-
-  for (let i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]) === razorpayOrderId) {
-      return i + 2;
-    }
-  }
-
-  return null;
-}
-
-function saveVmoodVerifiedOrder_(data) {
-  const existingRow = findVmoodOrderRow_(
-    data.ordersSheet,
-    data.razorpayOrderId
-  );
-
-  let orderId;
-  let createdAt;
-  let deliveryStatus = "PROCESSING";
-
-  if (existingRow) {
-    const existing = data.ordersSheet
-      .getRange(existingRow, 1, 1, 16)
-      .getValues()[0];
-
-    orderId = existing[1] || "VMOOD-" + Date.now();
-    createdAt = existing[0] || new Date();
-
-    const previousStatus = String(
-      existing[11] || ""
-    ).trim().toUpperCase();
-
-    if (["PROCESSING", "SHIPPED", "DELIVERED"].includes(previousStatus)) {
-      deliveryStatus = previousStatus;
-    }
-  } else {
-    orderId = "VMOOD-" + Date.now();
-    createdAt = new Date();
-  }
-
-  const rowData = [
-    createdAt,
-    orderId,
-    data.sku,
-    data.productName,
-    data.size,
-    data.quantity,
-    data.unitPrice,
-    data.amount / 100,
-    data.customerName,
-    data.phone,
-    data.fullAddress,
-    deliveryStatus,
-    data.razorpayOrderId,
-    data.razorpayPaymentId,
-    "PAID",
-    data.stockDeducted
-  ];
-
-  if (existingRow) {
-    data.ordersSheet
-      .getRange(existingRow, 1, 1, 16)
-      .setValues([rowData]);
-  } else {
-    data.ordersSheet.appendRow(rowData);
-  }
-
-  SpreadsheetApp.flush();
-
-  return orderId;
 }
