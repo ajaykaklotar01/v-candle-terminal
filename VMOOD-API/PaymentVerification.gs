@@ -59,7 +59,6 @@ function verifyVmoodPayment_(body) {
   const totalAmount = Number(razorpayOrder.amount) / 100;
   const customerName = String(notes.customer_name || "").trim();
   const phone = String(notes.phone || "").trim();
-  const email = String(notes.email || "").trim();
   const fullAddress = [
     String(notes.street_1 || "").trim(),
     String(notes.street_2 || "").trim(),
