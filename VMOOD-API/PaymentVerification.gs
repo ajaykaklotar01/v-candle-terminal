@@ -146,10 +146,10 @@ function verifyVmoodPayment_(body) {
       };
     }
 
-    if (stockState.stock < quantity) {
+    if (stockState.stock - quantity < 3) {
       sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
       SpreadsheetApp.flush();
-      return vmoodStockReviewResponse_(orderId, "Payment was received, but available stock needs a manual check.");
+      return vmoodStockReviewResponse_(orderId, "Payment was received, but fulfilling this order would use the 3-unit reserve. Manual stock review is required.");
     }
 
     try {
