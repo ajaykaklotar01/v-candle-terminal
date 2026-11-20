@@ -1,7 +1,19 @@
 // ==========================================
 // VMOOD PAYMENT VERIFICATION + STOCK UPDATE
-// Uses ORDERS as the single order record
+// Create the Google Sheets order only after captured payment.
 // ==========================================
+
+function vmoodRazorpayGet_(path, keyId, keySecret) {
+  const response = UrlFetchApp.fetch("https://api.razorpay.com/v1/" + path, {
+    method: "get",
+    headers: { Authorization: "Basic " + Utilities.base64Encode(keyId + ":" + keySecret) },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Unable to verify payment with Razorpay. Please do not pay again.");
+  }
+  return JSON.parse(response.getContentText());
+}
 
 function verifyVmoodPayment_(body) {
   const razorpayOrderId = String(body.razorpay_order_id || "").trim();
@@ -25,63 +37,92 @@ function verifyVmoodPayment_(body) {
     throw new Error("Invalid Razorpay payment signature");
   }
 
-  const paymentResponse = UrlFetchApp.fetch(
-    "https://api.razorpay.com/v1/payments/" + encodeURIComponent(razorpayPaymentId),
-    {
-      method: "get",
-      headers: { Authorization: "Basic " + Utilities.base64Encode(keyId + ":" + keySecret) },
-      muteHttpExceptions: true
-    }
-  );
-  if (paymentResponse.getResponseCode() !== 200) {
-    throw new Error("Unable to verify payment with Razorpay. Please do not pay again.");
-  }
+  const payment = vmoodRazorpayGet_("payments/" + encodeURIComponent(razorpayPaymentId), keyId, keySecret);
+  const razorpayOrder = vmoodRazorpayGet_("orders/" + encodeURIComponent(razorpayOrderId), keyId, keySecret);
 
-  const payment = JSON.parse(paymentResponse.getContentText());
   if (payment.id !== razorpayPaymentId || payment.order_id !== razorpayOrderId) {
     throw new Error("Razorpay payment details do not match this order");
   }
   if (payment.status !== "captured") {
-    throw new Error("Payment is not captured. Current status: " + payment.status);
+    throw new Error("Payment is not captured yet. Do not pay again; contact VMOOD if money was deducted.");
   }
-  if (payment.currency !== "INR") throw new Error("Invalid payment currency");
+  if (payment.currency !== "INR" || razorpayOrder.currency !== "INR" ||
+      Number(payment.amount) !== Number(razorpayOrder.amount)) {
+    throw new Error("Payment amount or currency does not match the Razorpay order");
+  }
+
+  const notes = razorpayOrder.notes || {};
+  const sku = String(notes.sku || "").trim().toUpperCase();
+  const option = String(notes.option || "").trim();
+  const quantity = Number(notes.quantity);
+  const unitPrice = Number(notes.unit_price);
+  const totalAmount = Number(razorpayOrder.amount) / 100;
+  const customerName = String(notes.customer_name || "").trim();
+  const phone = String(notes.phone || "").trim();
+  const email = String(notes.email || "").trim();
+  const fullAddress = [
+    String(notes.street_1 || "").trim(),
+    String(notes.street_2 || "").trim(),
+    String(notes.city || "").trim(),
+    String(notes.state || "").trim(),
+    String(notes.pincode || "").trim()
+  ].filter(Boolean).join(", ");
+  const productName = String(notes.product_name || "").trim();
+
+  if (!/^(MP|WP)[A-Z0-9_-]+$/.test(sku) || !option ||
+      !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 20 ||
+      !Number.isFinite(unitPrice) || unitPrice <= 0 ||
+      Math.round(unitPrice * quantity * 100) !== Number(razorpayOrder.amount) ||
+      customerName.length < 3 || !/^[6-9]\d{9}$/.test(phone) ||
+      !fullAddress || !productName) {
+    throw new Error("The verified Razorpay order is missing valid VMOOD order details. Contact VMOOD; do not pay again.");
+  }
+
+  const databaseId = sku.startsWith("MP") ? VMOOD_DATABASES.MEN : VMOOD_DATABASES.WOMEN;
+  const product = getProduct(databaseId, sku);
+  if (!product) throw new Error("Product details could not be found. Contact VMOOD; do not pay again.");
+  const currentOption = Object.keys(product.variants || {}).find(function(key) {
+    return key.trim().toUpperCase() === option.toUpperCase();
+  });
+  if (!currentOption) throw new Error("Selected product option could not be found. Contact VMOOD; do not pay again.");
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     const sheet = getVmoodOrdersSheet_();
-    const orderRow = findVmoodOrderRow_(sheet, razorpayOrderId);
-    if (!orderRow) throw new Error("Order record not found. Contact VMOOD and do not pay again.");
+    let orderRow = findVmoodOrderRow_(sheet, razorpayOrderId);
+    let orderId;
 
-    const row = sheet.getRange(orderRow, 1, 1, 16).getValues()[0];
-    const orderId = String(row[1] || "");
-    const sku = String(row[2] || "").trim().toUpperCase();
-    const option = String(row[4] || "").trim();
-    const quantity = Number(row[5]);
-    const unitPrice = Number(row[6]);
-    const totalAmount = Number(row[7]);
-    const savedPaymentId = String(row[13] || "").trim();
-    const stockStatus = String(row[15]).trim().toUpperCase();
-
-    if (savedPaymentId && savedPaymentId !== razorpayPaymentId) {
-      throw new Error("A different payment is already linked to this order");
+    if (orderRow) {
+      const saved = sheet.getRange(orderRow, 1, 1, 16).getValues()[0];
+      if (String(saved[13] || "").trim() !== razorpayPaymentId) {
+        throw new Error("A different payment is already linked to this Razorpay order.");
+      }
+      orderId = String(saved[1] || "");
+      if (String(saved[15]).trim().toUpperCase() === "TRUE") {
+        return {
+          success: true, paymentVerified: true, stockDeducted: true,
+          orderId: orderId, orderStatus: "PAID",
+          message: "Payment successful. Your VMOOD order is confirmed."
+        };
+      }
+    } else {
+      orderId = "VMOOD-" + Date.now() + "-" + Utilities.getUuid().slice(0, 6).toUpperCase();
+      sheet.appendRow([
+        new Date(), orderId, sku, productName, currentOption, quantity,
+        unitPrice, totalAmount, customerName, phone, fullAddress,
+        "PROCESSING", razorpayOrderId, razorpayPaymentId, "PAID", "PROCESSING"
+      ]);
+      SpreadsheetApp.flush();
+      orderRow = sheet.getLastRow();
     }
-    if (!/^(MP|WP)[A-Z0-9_-]+$/.test(sku) || !option ||
-        !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 20 ||
-        !Number.isFinite(unitPrice) || unitPrice <= 0 ||
-        !Number.isFinite(totalAmount) || totalAmount <= 0) {
-      throw new Error("Saved order details are invalid");
-    }
-    if (Math.round(totalAmount * 100) !== Number(payment.amount) ||
-        Math.round(unitPrice * quantity * 100) !== Math.round(totalAmount * 100)) {
-      throw new Error("Payment amount does not match the saved order");
-    }
 
-    // Persist payment success before attempting stock work.
-    sheet.getRange(orderRow, 14, 1, 2).setValues([[razorpayPaymentId, "PAID"]]);
-    SpreadsheetApp.flush();
-
-    if (stockStatus === "TRUE") {
+    // If an earlier attempt completed the stock write but failed before updating ORDERS,
+    // the payment marker prevents a second deduction.
+    const stockState = getVmoodVariantStockState_(databaseId, sku, currentOption);
+    if (stockState.lastPaymentId === razorpayPaymentId) {
+      sheet.getRange(orderRow, 16).setValue(true);
+      SpreadsheetApp.flush();
       return {
         success: true, paymentVerified: true, stockDeducted: true,
         orderId: orderId, orderStatus: "PAID",
@@ -89,60 +130,12 @@ function verifyVmoodPayment_(body) {
       };
     }
 
-    const databaseId = sku.startsWith("MP") ? VMOOD_DATABASES.MEN : VMOOD_DATABASES.WOMEN;
-    const product = getProduct(databaseId, sku);
-    if (!product) {
-      sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
-      SpreadsheetApp.flush();
-      return vmoodStockReviewResponse_(orderId, "Product details need a manual stock check.");
-    }
-
-    const currentOption = Object.keys(product.variants || {}).find(function(key) {
-      return key.trim().toUpperCase() === option.toUpperCase();
-    });
-    if (!currentOption) {
-      sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
-      SpreadsheetApp.flush();
-      return vmoodStockReviewResponse_(orderId, "The selected option needs a manual stock check.");
-    }
-
-    const stockState = getVmoodVariantStockState_(databaseId, sku, currentOption);
-
-    // A matching marker proves that this payment's stock change already happened.
-    if (stockState.lastPaymentId === razorpayPaymentId) {
-      sheet.getRange(orderRow, 16).setValue(true);
-      SpreadsheetApp.flush();
-      return {
-        success: true, paymentVerified: true, stockDeducted: true,
-        orderId: orderId, orderStatus: "PAID",
-        message: "Payment verified. Stock update was already completed."
-      };
-    }
-
-    // Do not let a second payment alter this variant while an earlier deduction is unresolved.
-    const lastRow = sheet.getLastRow();
-    const allRows = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 16).getValues() : [];
-    for (let i = 0; i < allRows.length; i++) {
-      const other = allRows[i];
-      if (i + 2 === orderRow) continue;
-      if (String(other[2] || "").trim().toUpperCase() === sku &&
-          String(other[4] || "").trim().toUpperCase() === currentOption.toUpperCase() &&
-          String(other[15] || "").trim().toUpperCase() === "PROCESSING") {
-        sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
-        SpreadsheetApp.flush();
-        return vmoodStockReviewResponse_(orderId, "Another stock update for this option is being reconciled.");
-      }
-    }
-
     if (stockState.stock < quantity) {
       sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
       SpreadsheetApp.flush();
-      return vmoodStockReviewResponse_(orderId, "Payment received, but available stock needs a manual check.");
+      return vmoodStockReviewResponse_(orderId, "Payment was received, but available stock needs a manual check.");
     }
 
-    // Mark PROCESSING before stock is changed. A retry checks the payment marker first.
-    sheet.getRange(orderRow, 16).setValue("PROCESSING");
-    SpreadsheetApp.flush();
     try {
       deductVmoodStockOnce_(databaseId, sku, currentOption, quantity, razorpayPaymentId);
       sheet.getRange(orderRow, 16).setValue(true);
@@ -150,7 +143,7 @@ function verifyVmoodPayment_(body) {
     } catch (stockError) {
       sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
       SpreadsheetApp.flush();
-      return vmoodStockReviewResponse_(orderId, "Payment received. Stock update needs reconciliation.");
+      return vmoodStockReviewResponse_(orderId, "Payment was received, but the stock update needs a manual check.");
     }
 
     return {
@@ -170,7 +163,7 @@ function vmoodStockReviewResponse_(orderId, detail) {
     stockDeducted: false,
     orderId: orderId,
     orderStatus: "PAID",
-    message: "Payment received. " + detail + " VMOOD will resolve the order. Do not pay again."
+    message: detail + " VMOOD will resolve the order. Do not pay again."
   };
 }
 

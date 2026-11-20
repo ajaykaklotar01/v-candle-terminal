@@ -3,7 +3,7 @@
 // ==========================================
 
 const VMOOD_DATABASES = {
-  MEN: "1cqbWLwhw-eHKqiJf24hG8k0A_Mw-aVIT8mPMP4RAivk",
+  MEN: "1cqbWLwhw-eHKqiJf24hG8k0A_Mw-aVIT4RAivk",
   WOMEN: "1BAPAgcOwMrVbVBYurqKdrl0kZ0Pqn6EBspCmo0htXaU"
 };
 
@@ -81,7 +81,7 @@ function testVmoodOrderSetup() {
 
   Logger.log("VMOOD SIMPLE PAYMENT SYSTEM SETUP CHECK PASSED.");
   Logger.log("Required Script Properties: ORDERS_SPREADSHEET_ID, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET.");
-  Logger.log("ORDERS columns checked: A:P (16 columns).");
+  Logger.log("Google Sheets is written only after Razorpay confirms a captured payment.");
 }
 
 function vmoodPostResponse_(data) {

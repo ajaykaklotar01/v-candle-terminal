@@ -1,31 +1,7 @@
 // ==========================================
 // VMOOD SIMPLE PAYMENT SYSTEM
-// Razorpay + ORDERS sheet (no reservations)
+// Create Razorpay order only. No Google Sheets write before payment.
 // ==========================================
-
-function testVmoodRazorpayConnection() {
-  const props = PropertiesService.getScriptProperties();
-  const keyId = props.getProperty("RAZORPAY_KEY_ID");
-  const keySecret = props.getProperty("RAZORPAY_KEY_SECRET");
-  if (!keyId || !keySecret) throw new Error("Razorpay credentials are missing.");
-
-  const response = UrlFetchApp.fetch("https://api.razorpay.com/v1/orders", {
-    method: "post",
-    contentType: "application/json",
-    headers: { Authorization: "Basic " + Utilities.base64Encode(keyId + ":" + keySecret) },
-    payload: JSON.stringify({
-      amount: 100, currency: "INR", receipt: "VMOOD_TEST_" + Date.now(),
-      notes: { purpose: "VMOOD backend connection test" }
-    }),
-    muteHttpExceptions: true
-  });
-  const result = JSON.parse(response.getContentText());
-  if (response.getResponseCode() !== 200 && response.getResponseCode() !== 201) {
-    throw new Error(result.error && result.error.description ? result.error.description : response.getContentText());
-  }
-  Logger.log("RAZORPAY CONNECTION SUCCESSFUL");
-  Logger.log("Test Order ID: " + result.id);
-}
 
 function getVmoodOrdersSheet_() {
   const id = PropertiesService.getScriptProperties().getProperty("ORDERS_SPREADSHEET_ID");
@@ -85,7 +61,6 @@ function createVmoodRazorpayOrder_(body) {
   if (state.length < 2 || state.length > 80) throw new Error("Please enter a valid state");
   if (!/^\d{6}$/.test(pincode)) throw new Error("Please enter a valid 6-digit pincode");
 
-  const fullAddress = [street, city, state, pincode].join(", ");
   const databaseId = sku.startsWith("MP") ? VMOOD_DATABASES.MEN : VMOOD_DATABASES.WOMEN;
   const props = PropertiesService.getScriptProperties();
   const keyId = props.getProperty("RAZORPAY_KEY_ID");
@@ -108,13 +83,29 @@ function createVmoodRazorpayOrder_(body) {
     const unitPrice = Number(variant.newPrice);
     if (!Number.isSafeInteger(stock) || stock < 0) throw new Error("Invalid product stock");
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error("Invalid product price");
-
-    // New checkouts close when stock reaches 3 or less.
     if (stock <= 3) throw new Error("This option is currently unavailable");
     if (quantity > stock) throw new Error("Only " + stock + " unit(s) are currently available");
 
     const amount = Math.round(unitPrice * quantity * 100);
     if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error("Invalid order amount");
+
+    // Razorpay notes keep checkout details until payment succeeds.
+    // Nothing is appended to Google Sheets at this stage.
+    const notes = {
+      sku: sku,
+      option: option,
+      quantity: String(quantity),
+      unit_price: String(unitPrice),
+      product_name: String(product["Product Name"] || "").slice(0, 200),
+      customer_name: customerName,
+      phone: phone,
+      email: email,
+      street_1: street.slice(0, 250),
+      street_2: street.slice(250),
+      city: city,
+      state: state,
+      pincode: pincode
+    };
 
     const response = UrlFetchApp.fetch("https://api.razorpay.com/v1/orders", {
       method: "post",
@@ -124,7 +115,7 @@ function createVmoodRazorpayOrder_(body) {
         amount: amount,
         currency: "INR",
         receipt: "VM" + Date.now(),
-        notes: { sku: sku, option: option, quantity: String(quantity) }
+        notes: notes
       }),
       muteHttpExceptions: true
     });
@@ -138,24 +129,15 @@ function createVmoodRazorpayOrder_(body) {
     if (response.getResponseCode() !== 200 && response.getResponseCode() !== 201) {
       throw new Error(result.error && result.error.description ? result.error.description : "Razorpay order creation failed");
     }
-    if (!result.id || Number(result.amount) !== amount) throw new Error("Invalid Razorpay order response");
-
-    // Save the order before the customer can open Razorpay Checkout.
-    const orderId = "VMOOD-" + Date.now() + "-" + Utilities.getUuid().slice(0, 6).toUpperCase();
-    const sheet = getVmoodOrdersSheet_();
-    sheet.appendRow([
-      new Date(), orderId, sku, String(product["Product Name"] || ""),
-      option, quantity, unitPrice, amount / 100, customerName, phone,
-      fullAddress, "PROCESSING", result.id, "", "PENDING", false
-    ]);
-    SpreadsheetApp.flush();
+    if (!result.id || Number(result.amount) !== amount || result.currency !== "INR") {
+      throw new Error("Invalid Razorpay order response");
+    }
 
     return {
       success: true,
-      message: "Order created. Continue to secure payment.",
+      message: "Continue to secure payment.",
       keyId: keyId,
       razorpayOrderId: result.id,
-      orderId: orderId,
       amount: result.amount,
       currency: result.currency,
       sku: sku,
