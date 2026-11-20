@@ -101,11 +101,12 @@ function createVmoodRazorpayOrder_(body) {
       phone: phone,
       email: email,
       street_1: street.slice(0, 250),
-      street_2: street.slice(250),
       city: city,
       state: state,
       pincode: pincode
     };
+
+    if (street.length > 250) notes.street_2 = street.slice(250);
 
     const response = UrlFetchApp.fetch("https://api.razorpay.com/v1/orders", {
       method: "post",
