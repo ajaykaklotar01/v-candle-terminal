@@ -43,9 +43,11 @@ function doPost(e) {
   }
 }
 
+// Diagnostic test: logs the real HTTP response before attempting JSON parsing.
 function testVmoodPostDeployment() {
   const url = ScriptApp.getService().getUrl();
   if (!url) throw new Error("Web App URL not found. Check deployment.");
+
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     contentType: "text/plain",
@@ -53,10 +55,27 @@ function testVmoodPostDeployment() {
     followRedirects: true,
     muteHttpExceptions: true
   });
-  const result = JSON.parse(response.getContentText());
-  if (response.getResponseCode() !== 200 || !result.success) {
-    throw new Error("POST test failed: " + response.getContentText());
+
+  const status = response.getResponseCode();
+  const headers = response.getHeaders();
+  const contentType = headers["Content-Type"] || headers["content-type"] || "Not provided";
+  const body = response.getContentText();
+
+  Logger.log("POST HTTP STATUS: " + status);
+  Logger.log("POST CONTENT TYPE: " + contentType);
+  Logger.log("POST RESPONSE BODY (first 1500 characters): " + body.substring(0, 1500));
+
+  let result;
+  try {
+    result = JSON.parse(body);
+  } catch (error) {
+    throw new Error("POST returned non-JSON. HTTP " + status + "; Content-Type: " + contentType + ". Check the logged response body above.");
   }
+
+  if (status !== 200 || !result.success) {
+    throw new Error("POST test failed: " + body);
+  }
+
   Logger.log("VMOOD POST API SUCCESSFUL");
   Logger.log("Response: " + result.message);
 }
