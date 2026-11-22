@@ -111,6 +111,23 @@ function processVmoodStockLedger_(databaseId, sku, option, quantity, paymentId, 
   } else {
     const state = getVmoodVariantStockState_(databaseId, sku, option);
 
+    // Do not process new deductions while an older pre-ledger paid order for this
+    // same variant is still unresolved. Its previous deduction may have occurred
+    // before the permanent ledger was introduced.
+    const ordersSheet = getVmoodOrdersSheet_();
+    const ordersLastRow = ordersSheet.getLastRow();
+    if (ordersLastRow >= 2) {
+      const oldOrders = ordersSheet.getRange(2, 1, ordersLastRow - 1, 16).getValues();
+      const unresolvedLegacyOrder = oldOrders.some(function(row) {
+        return String(row[13] || "").trim() !== paymentId &&
+          String(row[2] || "").trim().toUpperCase() === sku.toUpperCase() &&
+          String(row[4] || "").trim().toUpperCase() === option.toUpperCase() &&
+          String(row[14] || "").trim().toUpperCase() === "PAID" &&
+          String(row[15] || "").trim().toUpperCase() !== "TRUE";
+      });
+      if (unresolvedLegacyOrder) return { success: false, reviewRequired: true };
+    }
+
     // Compatibility with a deduction made by the previous version before its ledger existed.
     if (state.lastPaymentId === paymentId) {
       beforeStock = state.stock + quantity;
