@@ -20,7 +20,7 @@ function doGet(e) {
     if (!result) return sendResponse({ success: false, message: "Product not found" }, e);
     return sendResponse({ success: true, product: result }, e);
   } catch (error) {
-    return sendResponse({ success: false, message: error.message }, e);
+    return sendResponse({ success: false, message: vmoodPublicErrorMessage_(error, "GET_PRODUCT") }, e);
   }
 }
 
@@ -39,7 +39,9 @@ function doPost(e) {
 
     return vmoodPostResponse_({ success: false, message: "Unknown API action" });
   } catch (error) {
-    return vmoodPostResponse_({ success: false, message: error.message || "VMOOD API error" });
+    let action = "UNKNOWN";
+    try { action = String(JSON.parse(e.postData.contents || "{}").action || "UNKNOWN").trim().toUpperCase(); } catch (ignored) {}
+    return vmoodPostResponse_({ success: false, message: vmoodPublicErrorMessage_(error, action) });
   }
 }
 
