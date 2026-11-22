@@ -131,7 +131,7 @@ function createVmoodRazorpayOrder_(body) {
       throw new Error("Invalid response from Razorpay");
     }
     if (response.getResponseCode() !== 200 && response.getResponseCode() !== 201) {
-      throw new Error(result.error && result.error.description ? result.error.description : "Razorpay order creation failed");
+      throw new Error("Razorpay order creation failed. Please try again.");
     }
     if (!result.id || Number(result.amount) !== amount || result.currency !== "INR") {
       throw new Error("Invalid Razorpay order response");
