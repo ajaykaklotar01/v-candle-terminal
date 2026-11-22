@@ -162,7 +162,11 @@ function processVmoodStockLedger_(databaseId, sku, option, quantity, paymentId, 
   // If the previous execution stopped after writing stock but before updating the ledger,
   // the per-variant marker proves that this payment already made the deduction.
   const current = getVmoodVariantStockState_(databaseId, sku, option);
-  if (current.lastPaymentId === paymentId || current.stock === afterStock) {
+  // Only the matching payment marker proves that this payment wrote the stock.
+  // A matching stock number alone is not proof: manual edits or another inventory
+  // adjustment could coincidentally produce the same value. In that case, stop
+  // and require reconciliation instead of falsely marking the payment complete.
+  if (current.lastPaymentId === paymentId) {
     ledger.getRange(ledgerRow, 8, 1, 2).setValues([["DEDUCTED", new Date()]]);
     SpreadsheetApp.flush();
     return { success: true, alreadyDeducted: true };
