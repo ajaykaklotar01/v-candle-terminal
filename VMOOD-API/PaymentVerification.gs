@@ -116,50 +116,21 @@ function verifyVmoodPayment_(body) {
       orderRow = sheet.getLastRow();
     }
 
-    // Keep deductions for one variant sequential. If an earlier payment is still
-    // PROCESSING, let its retry resolve the stock marker before another payment deducts.
-    const lastRow = sheet.getLastRow();
-    const orderRows = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 16).getValues() : [];
-    for (let i = 0; i < orderRows.length; i++) {
-      const other = orderRows[i];
-      if (i + 2 === orderRow) continue;
-      if (String(other[2] || "").trim().toUpperCase() === sku &&
-          String(other[4] || "").trim().toUpperCase() === currentOption.toUpperCase() &&
-          String(other[15] || "").trim().toUpperCase() === "PROCESSING") {
-        sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
-        SpreadsheetApp.flush();
-        return vmoodStockReviewResponse_(orderId, "Another paid order for this option is still being updated.");
-      }
-    }
+    // The permanent ledger makes each Razorpay payment idempotent.
+    // An unresolved payment blocks later deductions for the same SKU + option.
+    const ledgerResult = processVmoodStockLedger_(
+      databaseId, sku, currentOption, quantity, razorpayPaymentId, razorpayOrderId
+    );
 
-    // If an earlier attempt completed the stock write but failed before updating ORDERS,
-    // the payment marker prevents a second deduction.
-    const stockState = getVmoodVariantStockState_(databaseId, sku, currentOption);
-    if (stockState.lastPaymentId === razorpayPaymentId) {
-      sheet.getRange(orderRow, 16).setValue(true);
-      SpreadsheetApp.flush();
-      return {
-        success: true, paymentVerified: true, stockDeducted: true,
-        orderId: orderId, orderStatus: "PAID",
-        message: "Payment successful. Your VMOOD order is confirmed."
-      };
-    }
-
-    if (stockState.stock - quantity < 3) {
+    if (!ledgerResult.success || ledgerResult.reviewRequired) {
       sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
       SpreadsheetApp.flush();
-      return vmoodStockReviewResponse_(orderId, "Payment was received, but fulfilling this order would use the 3-unit reserve. Manual stock review is required.");
+      return vmoodStockReviewResponse_(orderId,
+        "Payment was received, but the stock update needs reconciliation. VMOOD will resolve it. Do not pay again.");
     }
 
-    try {
-      deductVmoodStockOnce_(databaseId, sku, currentOption, quantity, razorpayPaymentId);
-      sheet.getRange(orderRow, 16).setValue(true);
-      SpreadsheetApp.flush();
-    } catch (stockError) {
-      sheet.getRange(orderRow, 16).setValue("REVIEW_REQUIRED");
-      SpreadsheetApp.flush();
-      return vmoodStockReviewResponse_(orderId, "Payment was received, but the stock update needs a manual check.");
-    }
+    sheet.getRange(orderRow, 16).setValue(true);
+    SpreadsheetApp.flush();
 
     return {
       success: true, paymentVerified: true, stockDeducted: true,
