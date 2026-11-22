@@ -88,3 +88,40 @@ function vmoodPostResponse_(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+
+// Public API error handling: preserve expected customer messages, hide internals.
+function vmoodPublicErrorMessage_(error, action) {
+  const message = String(error && error.message ? error.message : "");
+  const safeExact = [
+    "Request body is missing", "Payment verification details missing",
+    "Invalid Razorpay payment signature",
+    "Razorpay payment details do not match this order",
+    "Payment is not captured yet. Do not pay again; contact VMOOD if money was deducted.",
+    "Payment amount or currency does not match the Razorpay order",
+    "Product not found", "Selected option is unavailable",
+    "Please enter a valid customer name", "Please enter a valid Indian mobile number",
+    "Please enter a valid email address", "Please enter a valid delivery address",
+    "Please enter a valid city", "Please enter a valid state",
+    "Please enter a valid 6-digit pincode", "Invalid product SKU",
+    "Invalid product option", "Quantity must be between 1 and 20",
+    "This option is currently unavailable",
+    "Unable to verify payment with Razorpay. Please do not pay again."
+  ];
+  if (safeExact.indexOf(message) !== -1) return message;
+
+  const safePrefixes = [
+    "You can buy a maximum of ",
+    "The verified Razorpay order is missing valid VMOOD order details.",
+    "Product details could not be found.",
+    "Selected product option could not be found.",
+    "A different payment is already linked to this Razorpay order."
+  ];
+  if (safePrefixes.some(function(prefix) { return message.indexOf(prefix) === 0; })) return message;
+
+  console.error("VMOOD API internal error [" + String(action || "UNKNOWN") + "]: " +
+    (error && error.stack ? error.stack : message || "Unknown error"));
+  return action === "VERIFY_PAYMENT"
+    ? "We could not complete payment verification. If money was deducted, do not pay again; contact VMOOD with your Razorpay payment ID."
+    : "Something went wrong. Please try again later or contact VMOOD.";
+}
